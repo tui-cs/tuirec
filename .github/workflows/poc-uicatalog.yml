@@ -133,6 +133,7 @@ jobs:
 
       # ── Upload artifacts ────────────────────────────────────────────────────
       - name: Upload recording artifacts
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: uicatalog-recording
@@ -140,3 +141,17 @@ jobs:
             /tmp/uicatalog.gif
             /tmp/uicatalog.cast
           if-no-files-found: error
+
+      # ── Job summary ─────────────────────────────────────────────────────────
+      # Print a direct link to the artifact so there's no need to hunt through
+      # the artifacts panel or unzip anything to reach the GIF.
+      - name: Write job summary
+        run: |
+          echo "## 🎬 UICatalog Recording" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**[⬇ Download GIF + cast (uicatalog-recording.zip)](${{ steps.upload.outputs.artifact-url }})**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| uicatalog.gif  | $(du -h /tmp/uicatalog.gif  | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| uicatalog.cast | $(du -h /tmp/uicatalog.cast | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
