@@ -1,0 +1,44 @@
+# ─── Build stage ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# ─── Runtime stage ──────────────────────────────────────────────────────────
+FROM node:20-alpine
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Install runtime dependencies.
+# agg: asciinema GIF renderer (MIT).
+# python3 + git are needed for optional GitHub-repo job sources.
+RUN apk add --no-cache \
+    python3 \
+    git \
+    curl \
+    ca-certificates \
+    bash
+
+# Install agg from the GitHub release.
+ARG AGG_VERSION=1.5.0
+RUN curl -fsSL \
+    "https://github.com/asciinema/agg/releases/download/v${AGG_VERSION}/agg-x86_64-unknown-linux-musl" \
+    -o /usr/local/bin/agg \
+  && chmod +x /usr/local/bin/agg
+
+# Install the .NET SDK for GitHub-repo job sources (dotnet publish).
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir /usr/local/share/dotnet \
+  && ln -s /usr/local/share/dotnet/dotnet /usr/local/bin/dotnet
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/dist ./dist
+
+CMD ["node", "dist/worker/worker.js"]

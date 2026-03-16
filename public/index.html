@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TUIcast – AI-Powered Terminal GIF Generation</title>
+  <style>
+    :root {
+      --bg: #1a1b26;
+      --surface: #24283b;
+      --surface2: #2f3549;
+      --border: #414868;
+      --text: #c0caf5;
+      --text-dim: #7aa2f7;
+      --accent: #7aa2f7;
+      --accent2: #bb9af7;
+      --success: #9ece6a;
+      --error: #f7768e;
+      --warn: #e0af68;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    header .tagline {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    main {
+      flex: 1;
+      max-width: 860px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    section h2 {
+      font-size: 1rem;
+      color: var(--accent2);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="url"],
+    input[type="file"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group { margin-bottom: 1rem; }
+
+    .radio-group {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .source-panel { display: none; }
+    .source-panel.active { display: block; }
+
+    button[type="submit"] {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 0.7rem 2rem;
+      transition: opacity 0.15s;
+    }
+
+    button[type="submit"]:hover { opacity: 0.85; }
+    button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #status-section { display: none; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .status-queued  { background: var(--border); color: var(--text); }
+    .status-running { background: var(--warn); color: var(--bg); }
+    .status-completed { background: var(--success); color: var(--bg); }
+    .status-failed  { background: var(--error); color: var(--bg); }
+
+    .job-id {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+      word-break: break-all;
+    }
+
+    #gif-preview {
+      display: none;
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    #gif-preview img {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .download-btn {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--success);
+      color: var(--bg);
+      border-radius: 4px;
+      font-family: inherit;
+      font-weight: 700;
+      padding: 0.5rem 1.5rem;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: opacity 0.15s;
+    }
+
+    .download-btn:hover { opacity: 0.85; }
+
+    .error-msg {
+      color: var(--error);
+      background: rgba(247,118,142,0.1);
+      border: 1px solid var(--error);
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-top: 1rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.35rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.75rem;
+      color: var(--border);
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🎬 TUIcast</h1>
+    <p class="tagline">AI-Powered Terminal GIF Generation for Terminal.Gui Developers</p>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2>New Recording</h2>
+    <form id="job-form">
+
+      <!-- Goal -->
+      <div class="form-group">
+        <label for="goal">What should the recording demonstrate?</label>
+        <textarea id="goal" name="goal" placeholder='e.g. "Show how popover menus work" or "Demonstrate the file-open dialog"' required></textarea>
+      </div>
+
+      <!-- App source -->
+      <div class="form-group">
+        <label>App source</label>
+        <div class="radio-group">
+          <label><input type="radio" name="source-type" value="github" checked /> GitHub repo</label>
+          <label><input type="radio" name="source-type" value="binary" /> Upload binary</label>
+          <label><input type="radio" name="source-type" value="docker" /> Docker image</label>
+        </div>
+      </div>
+
+      <!-- GitHub source -->
+      <div id="panel-github" class="source-panel active">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="github-repo">Repository URL</label>
+            <input type="url" id="github-repo" name="github-repo" placeholder="https://github.com/org/repo" />
+          </div>
+          <div class="form-group">
+            <label for="github-ref">Branch / tag / SHA <span style="opacity:.6">(optional)</span></label>
+            <input type="text" id="github-ref" name="github-ref" placeholder="main" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Binary upload -->
+      <div id="panel-binary" class="source-panel">
+        <div class="form-group">
+          <label for="binary">Self-contained executable</label>
+          <input type="file" id="binary" name="binary" />
+          <p class="hint">Upload a single self-contained binary (dotnet publish -r linux-x64 --self-contained).</p>
+        </div>
+      </div>
+
+      <!-- Docker image -->
+      <div id="panel-docker" class="source-panel">
+        <div class="form-group">
+          <label for="docker-image">Docker image name</label>
+          <input type="text" id="docker-image" name="docker-image" placeholder="myacr.azurecr.io/myapp:latest" />
+        </div>
+      </div>
+
+      <!-- GIF Config -->
+      <details>
+        <summary style="cursor:pointer;color:var(--text-dim);font-size:0.85rem;margin-bottom:0.75rem;">
+          ▶ GIF settings (optional)
+        </summary>
+        <div class="form-row" style="margin-top:0.75rem;">
+          <div class="form-group">
+            <label for="cols">Terminal width (cols)</label>
+            <input type="number" id="cols" name="cols" value="120" min="40" max="220" />
+          </div>
+          <div class="form-group">
+            <label for="rows">Terminal height (rows)</label>
+            <input type="number" id="rows" name="rows" value="30" min="10" max="60" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="theme">Color theme</label>
+            <select id="theme" name="theme">
+              <option value="monokai">Monokai</option>
+              <option value="dracula">Dracula</option>
+              <option value="solarized-dark">Solarized Dark</option>
+              <option value="nord">Nord</option>
+              <option value="github-dark">GitHub Dark</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="speed">Playback speed</label>
+            <input type="number" id="speed" name="speed" value="1.0" min="0.1" max="5" step="0.1" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="keystrokes">Keystroke script <span style="opacity:.6">(optional – one per line; skips AI)</span></label>
+          <textarea id="keystrokes" name="keystrokes" placeholder="Tab&#10;ArrowDown&#10;Enter&#10;Escape" style="min-height:60px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="max-duration">Max duration (seconds, ≤ 60)</label>
+          <input type="number" id="max-duration" name="max-duration" value="60" min="5" max="60" />
+        </div>
+      </details>
+
+      <div style="margin-top:1.25rem;">
+        <button type="submit" id="submit-btn">▶ Generate GIF</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Status -->
+  <section id="status-section">
+    <h2>Job Status</h2>
+    <div id="status-content"></div>
+    <div id="gif-preview">
+      <img id="gif-img" src="" alt="Generated GIF" />
+      <br />
+      <a id="gif-download" class="download-btn" download="tuicast.gif">⬇ Download GIF</a>
+    </div>
+    <div class="progress-log" id="progress-log"></div>
+  </section>
+</main>
+
+<footer>TUIcast — MIT License — Built with ❤ for Terminal.Gui developers</footer>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // Source panel switching
+  // ---------------------------------------------------------------------------
+  document.querySelectorAll('input[name="source-type"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + radio.value).classList.add('active');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Form submission
+  // ---------------------------------------------------------------------------
+  const form = document.getElementById('job-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const statusSection = document.getElementById('status-section');
+  const statusContent = document.getElementById('status-content');
+  const progressLog = document.getElementById('progress-log');
+  const gifPreview = document.getElementById('gif-preview');
+  const gifImg = document.getElementById('gif-img');
+  const gifDownload = document.getElementById('gif-download');
+
+  let pollingInterval = null;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (pollingInterval) clearInterval(pollingInterval);
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Submitting…';
+    statusSection.style.display = 'none';
+    gifPreview.style.display = 'none';
+    progressLog.textContent = '';
+
+    const sourceType = document.querySelector('input[name="source-type"]:checked').value;
+    const formData = new FormData();
+
+    // Build spec
+    const spec = {
+      goal: document.getElementById('goal').value.trim(),
+      source: buildSource(sourceType),
+      gifConfig: {
+        cols: parseInt(document.getElementById('cols').value),
+        rows: parseInt(document.getElementById('rows').value),
+        theme: document.getElementById('theme').value,
+        speed: parseFloat(document.getElementById('speed').value),
+      },
+      maxDurationSeconds: parseInt(document.getElementById('max-duration').value),
+    };
+
+    const ks = document.getElementById('keystrokes').value.trim();
+    if (ks) {
+      spec.keystrokes = ks.split('\n').map(l => l.trim()).filter(Boolean);
+    }
+
+    formData.append('spec', JSON.stringify(spec));
+
+    if (sourceType === 'binary') {
+      const file = document.getElementById('binary').files[0];
+      if (file) formData.append('binary', file);
+    }
+
+    try {
+      const res = await fetch('/jobs', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Submission failed');
+      }
+      const job = await res.json();
+      statusSection.style.display = 'block';
+      log(`Job submitted: ${job.id}`);
+      renderStatus(job);
+      startPolling(job.id);
+    } catch (err) {
+      statusSection.style.display = 'block';
+      statusContent.innerHTML = `<div class="error-msg">❌ ${err.message}</div>`;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '▶ Generate GIF';
+    }
+  });
+
+  function buildSource(type) {
+    if (type === 'github') {
+      return {
+        githubRepo: document.getElementById('github-repo').value.trim(),
+        githubRef: document.getElementById('github-ref').value.trim() || 'main',
+      };
+    }
+    if (type === 'docker') {
+      return { dockerImage: document.getElementById('docker-image').value.trim() };
+    }
+    return { binaryPath: '__uploaded__' };
+  }
+
+  function startPolling(jobId) {
+    pollingInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/jobs/${jobId}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        renderStatus(job);
+
+        if (job.status === 'completed' || job.status === 'failed') {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+  }
+
+  function renderStatus(job) {
+    const badge = `<span class="status-badge status-${job.status}">${job.status}</span>`;
+    const spinner = (job.status === 'queued' || job.status === 'running')
+      ? '<span class="spinner"></span>'
+      : '';
+    statusContent.innerHTML = `
+      ${spinner}${badge}
+      <div class="job-id">Job ID: ${job.id}</div>
+      ${job.error ? `<div class="error-msg">❌ ${job.error}</div>` : ''}
+    `;
+
+    if (job.status === 'completed' && job.gifUrl) {
+      gifPreview.style.display = 'block';
+      gifImg.src = job.gifUrl;
+      gifDownload.href = job.gifUrl;
+      log(`✅ GIF ready: ${job.gifUrl}`);
+    }
+
+    if (job.actions && job.actions.length > 0) {
+      const last = job.actions[job.actions.length - 1];
+      log(`[${last.type}] ${last.description}`);
+    }
+  }
+
+  function log(msg) {
+    const line = document.createElement('div');
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    progressLog.appendChild(line);
+    progressLog.scrollTop = progressLog.scrollHeight;
+  }
+</script>
+
+</body>
+</html>

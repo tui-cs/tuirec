@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.js.map
+*.d.ts.map
+.env
+*.log
+tmp/
+recordings/
+gifs/
+uploads/
+coverage/
+.nyc_output/

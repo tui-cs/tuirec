@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - SERVICE_BUS_CONNECTION_STRING=${SERVICE_BUS_CONNECTION_STRING:-}
+      - SERVICE_BUS_QUEUE_NAME=${SERVICE_BUS_QUEUE_NAME:-tuicast-jobs}
+      - STORAGE_CONNECTION_STRING=${STORAGE_CONNECTION_STRING:-UseDevelopmentStorage=true}
+      - STORAGE_CONTAINER_GIFS=${STORAGE_CONTAINER_GIFS:-gifs}
+      - STORAGE_CONTAINER_CASTS=${STORAGE_CONTAINER_CASTS:-casts}
+      - STORAGE_CONTAINER_BINARIES=${STORAGE_CONTAINER_BINARIES:-binaries}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # When USE_QUEUE=false the API processes jobs inline (dev mode).
+      - USE_QUEUE=false
+    volumes:
+      - ./public:/app/public:ro
+    depends_on:
+      - azurite
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - SERVICE_BUS_CONNECTION_STRING=${SERVICE_BUS_CONNECTION_STRING:-}
+      - SERVICE_BUS_QUEUE_NAME=${SERVICE_BUS_QUEUE_NAME:-tuicast-jobs}
+      - STORAGE_CONNECTION_STRING=${STORAGE_CONNECTION_STRING:-UseDevelopmentStorage=true}
+      - STORAGE_CONTAINER_GIFS=${STORAGE_CONTAINER_GIFS:-gifs}
+      - STORAGE_CONTAINER_CASTS=${STORAGE_CONTAINER_CASTS:-casts}
+      - STORAGE_CONTAINER_BINARIES=${STORAGE_CONTAINER_BINARIES:-binaries}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AGG_PATH=/usr/local/bin/agg
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-opus-4-5}
+      - CLAUDE_MAX_TURNS=${CLAUDE_MAX_TURNS:-30}
+    profiles:
+      - full  # Only start when explicitly requested: docker compose --profile full up
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"  # Blob
+      - "10001:10001"  # Queue
+      - "10002:10002"  # Table
+    volumes:
+      - azurite-data:/data
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --debug /data/debug.log"
+
+volumes:
+  azurite-data:
