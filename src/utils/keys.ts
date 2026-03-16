@@ -28,12 +28,32 @@ export const KEY_ANSI_MAP: Readonly<Record<string, string>> = {
   F8: "\x1b[19~",
   F9: "\x1b[20~",
   F10: "\x1b[21~",
+  "Ctrl+A": "\x01",
+  "Ctrl+B": "\x02",
   "Ctrl+C": "\x03",
   "Ctrl+D": "\x04",
-  "Ctrl+Z": "\x1a",
-  "Ctrl+L": "\x0c",
-  "Ctrl+A": "\x01",
   "Ctrl+E": "\x05",
+  "Ctrl+F": "\x06",
+  "Ctrl+G": "\x07",
+  "Ctrl+H": "\x08",
+  "Ctrl+I": "\x09",
+  "Ctrl+J": "\x0a",
+  "Ctrl+K": "\x0b",
+  "Ctrl+L": "\x0c",
+  "Ctrl+M": "\x0d",
+  "Ctrl+N": "\x0e",
+  "Ctrl+O": "\x0f",
+  "Ctrl+P": "\x10",
+  "Ctrl+Q": "\x11",
+  "Ctrl+R": "\x12",
+  "Ctrl+S": "\x13",
+  "Ctrl+T": "\x14",
+  "Ctrl+U": "\x15",
+  "Ctrl+V": "\x16",
+  "Ctrl+W": "\x17",
+  "Ctrl+X": "\x18",
+  "Ctrl+Y": "\x19",
+  "Ctrl+Z": "\x1a",
 };
 
 /**
@@ -42,4 +62,20 @@ export const KEY_ANSI_MAP: Readonly<Record<string, string>> = {
  */
 export function keyToAnsi(key: string): string {
   return KEY_ANSI_MAP[key] ?? key;
+}
+
+/**
+ * Generate an SGR (XTerm extended) mouse click sequence for the given
+ * 1-based column and row.  Sends a left-button press immediately followed
+ * by a release so the app sees a complete click event.
+ *
+ * Terminal.Gui v2 enables SGR mouse reporting (\x1b[?1006h) on start-up, so
+ * these sequences are understood without any prior setup from our side.
+ *
+ * Format:
+ *   press   \x1b[<0;{col};{row}M
+ *   release \x1b[<0;{col};{row}m
+ */
+export function mouseClickSequence(col: number, row: number): string {
+  return `\x1b[<0;${col};${row}M\x1b[<0;${col};${row}m`;
 }

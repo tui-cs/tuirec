@@ -17,6 +17,9 @@
  *   --keystrokes <csv>      Comma-separated keystroke sequence, e.g.
  *                           "wait:3000,ArrowDown,ArrowDown,Enter,Ctrl+Q"
  *                           • Prefix any element with "wait:<ms>" to pause.
+ *                           • Use "click:<col>:<row>" to send a mouse click
+ *                             (1-based column and row; SGR encoding used by
+ *                             Terminal.Gui v2 automatically).
  *                           • Named keys: Enter, Tab, Escape, ArrowUp/Down/
  *                             Left/Right, F1-F10, Ctrl+C, Ctrl+Q, etc.
  *                           • Anything else is typed literally.
@@ -43,7 +46,7 @@ import * as path from "path";
 import { PtySession } from "../worker/pty-session";
 import { AsciinemaRecorder } from "../worker/recorder";
 import { renderGif } from "../worker/gif-renderer";
-import { keyToAnsi } from "../utils/keys";
+import { keyToAnsi, mouseClickSequence } from "../utils/keys";
 import { GifConfig } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -204,6 +207,18 @@ async function main(): Promise<void> {
       if (ms > 0) {
         console.log(`[record]   wait ${ms} ms`);
         await sleep(ms);
+      }
+      continue;
+    }
+
+    const clickMatch = key.match(/^click:(\d+):(\d+)$/i);
+    if (clickMatch) {
+      const col = parseInt(clickMatch[1], 10);
+      const row = parseInt(clickMatch[2], 10);
+      console.log(`[record]   mouse click at col=${col} row=${row}`);
+      session.write(mouseClickSequence(col, row));
+      if (args.keystrokeDelay > 0) {
+        await sleep(Math.min(args.keystrokeDelay, remainingMs(deadline)));
       }
       continue;
     }

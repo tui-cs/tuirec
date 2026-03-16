@@ -90,24 +90,32 @@ jobs:
 
       # ── Record UICatalog ────────────────────────────────────────────────────
       # Keystroke sequence:
-      #   wait:3000  – pause 3 s so the app fully renders its initial screen
-      #   ArrowDown  – move the selection down once (demonstrate navigation)
-      #   ArrowDown  – move again
-      #   wait:1000  – pause so the movement is visible in the GIF
-      #   Ctrl+Q     – quit UICatalog cleanly
+      #   wait:3000      – pause 3 s so the app fully renders its initial screen
+      #                    and Terminal.Gui's SGR mouse reporting is active
+      #   click:39:1     – mouse-click "Help" in the menu bar (col 39, row 1)
+      #                    Terminal.Gui v2 MenuBar layout with " title " padding:
+      #                     " File "(1-6) " Themes "(7-14) " Diagnostics "(15-27)
+      #                     " Logging "(28-36) " Help "(37-42)  → mid = col 39
+      #   wait:500       – wait for the Help dropdown to open
+      #   click:39:3     – click "About..." inside the popup
+      #                    (row 2 = top border, row 3 = first item inside border)
+      #   wait:2000      – pause so the About dialog is clearly visible in the GIF
+      #   Escape         – dismiss the About dialog
+      #   wait:500       – settle
+      #   Ctrl+Q         – quit UICatalog cleanly (\x11)
       - name: Record UICatalog session
         run: |
           npm run record -- \
             --binary      /tmp/uicatalog/UICatalog \
             --output      /tmp/uicatalog.gif \
             --cast-output /tmp/uicatalog.cast \
-            --keystrokes  "wait:3000,ArrowDown,wait:500,ArrowDown,wait:1000,Ctrl+Q" \
+            --keystrokes  "wait:3000,click:39:1,wait:500,click:39:3,wait:2000,Escape,wait:500,Ctrl+Q" \
             --cols        132 \
             --rows        40 \
             --theme       monokai \
             --speed       1.0 \
             --line-height 1.0 \
-            --max-duration 20 \
+            --max-duration 30 \
             --title       "UICatalog – TUIcast POC"
         env:
           TERM: xterm-256color
