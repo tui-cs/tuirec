@@ -25,6 +25,10 @@ export async function renderGif(options: RenderOptions): Promise<void> {
   const fontSize = gifConfig?.fontSize ?? 14;
   const theme = gifConfig?.theme ?? "monokai";
   const speed = gifConfig?.speed ?? 1.0;
+  // Default to 1.0 (no extra inter-row gap) — Terminal.Gui cell borders
+  // already include their own padding, so agg's default of 1.4 produces
+  // visible blank strips between rows.
+  const lineHeight = gifConfig?.lineHeight ?? 1.0;
 
   const args = [
     castPath,
@@ -35,6 +39,8 @@ export async function renderGif(options: RenderOptions): Promise<void> {
     theme,
     "--speed",
     String(speed),
+    "--line-height",
+    String(lineHeight),
   ];
 
   // Only pass --font-family when a font name is explicitly provided;

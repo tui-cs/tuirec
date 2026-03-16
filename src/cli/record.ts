@@ -28,6 +28,9 @@
  *   --font <name>           Font family for agg; omit to use agg's built-in
  *                           bitmap font (no system font required)
  *   --font-size <n>         Font size in px (default: 14)
+ *   --line-height <n>       Vertical line-height multiplier for agg (default: 1.0)
+ *                           agg's built-in default is 1.4, which adds visible gaps
+ *                           between rows. Use 1.0 for tight, gap-free rows.
  *   --speed <n>             GIF playback speed multiplier (default: 1.0)
  *   --max-duration <n>      Max recording seconds, capped at 60 (default: 60)
  *   --title <text>          Title embedded in the cast file
@@ -59,6 +62,7 @@ interface CliArgs {
   theme: string;
   font: string;
   fontSize: number;
+  lineHeight: number;
   speed: number;
   maxDuration: number;
   title: string;
@@ -93,6 +97,7 @@ function parseArgs(argv: string[]): CliArgs {
     theme: get("--theme") ?? "monokai",
     font: get("--font") ?? "",
     fontSize: parseInt(get("--font-size") ?? "14", 10),
+    lineHeight: parseFloat(get("--line-height") ?? "1.0"),
     speed: parseFloat(get("--speed") ?? "1.0"),
     maxDuration: (() => {
       const requested = parseInt(get("--max-duration") ?? "60", 10);
@@ -132,6 +137,7 @@ async function main(): Promise<void> {
     theme: args.theme,
     font: args.font || undefined,
     fontSize: args.fontSize,
+    lineHeight: args.lineHeight,
     speed: args.speed,
   };
 

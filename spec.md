@@ -106,7 +106,9 @@ Maps human-readable key names to ANSI escape sequences. Shared by `PtySession`, 
 
 Invokes `agg` (static binary; resolved via `AGG_PATH` env var or `PATH`). The `--font-family` flag is **omitted when no font is configured**, allowing `agg` to fall back to its built-in bitmap font. This is essential in CI environments where no system fonts are installed.
 
-Configurable via `GifConfig`: `cols`, `rows`, `font`, `fontSize`, `theme`, `speed`.
+`--line-height` defaults to **1.0** (no extra inter-row gap). `agg`'s built-in default is 1.4, which adds visible blank strips between rows — a problem for Terminal.Gui apps whose cell borders already provide their own visual separation. Setting `lineHeight: 1.0` eliminates those gaps and is the recommended value for Terminal.Gui recordings.
+
+Configurable via `GifConfig`: `cols`, `rows`, `font`, `fontSize`, `theme`, `speed`, `lineHeight`.
 
 ---
 
@@ -223,6 +225,8 @@ npm run record -- \
 #   --theme <name>          agg color theme (default: monokai)
 #   --font <name>           Font family; omit to use agg's built-in bitmap font
 #   --font-size <n>         Font size in px (default: 14)
+#   --line-height <n>       Vertical line-height multiplier for agg (default: 1.0)
+#                           agg's default (1.4) adds visible gaps between rows.
 #   --speed <n>             GIF playback speed multiplier (default: 1.0)
 #   --max-duration <n>      Max recording seconds; capped at 60 (default: 60)
 #   --title <text>          Title embedded in the cast file

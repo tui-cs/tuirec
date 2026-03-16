@@ -106,6 +106,7 @@ jobs:
             --rows        40 \
             --theme       monokai \
             --speed       1.0 \
+            --line-height 1.0 \
             --max-duration 20 \
             --title       "UICatalog – TUIcast POC"
         env:

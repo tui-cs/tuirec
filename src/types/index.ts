@@ -40,6 +40,13 @@ export interface GifConfig {
   theme?: string;
   /** Playback speed multiplier for the rendered GIF. Default: 1.0. */
   speed?: number;
+  /**
+   * Vertical line-height multiplier passed to agg.
+   * 1.0 = no extra gap between rows (tight); agg default is 1.4.
+   * Use 1.0 for Terminal.Gui apps whose cells already have built-in padding.
+   * Default: 1.0.
+   */
+  lineHeight?: number;
 }
 
 /** Full specification for a TUIcast recording job. */
