@@ -35,25 +35,24 @@ jobs:
       - name: Checkout TUIcast
         uses: actions/checkout@v4
 
-      # ── .NET 8 setup ────────────────────────────────────────────────────────
-      - name: Set up .NET 8
+      # ── .NET 10 setup ───────────────────────────────────────────────────────
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "10.0.x"
 
       # ── Build UICatalog ─────────────────────────────────────────────────────
       # UICatalog is the official Terminal.Gui demo application.
-      # We publish a framework-dependent build (the .NET 8 runtime we just
-      # installed will satisfy the dependency).
+      # The v2_develop branch targets net10.0 (see Directory.Build.props).
       - name: Clone Terminal.Gui
         run: |
-          git clone --depth 1 --branch main \
+          git clone --depth 1 --branch v2_develop \
             https://github.com/gui-cs/Terminal.Gui \
             /tmp/terminal-gui
 
       - name: Publish UICatalog
         run: |
-          dotnet publish /tmp/terminal-gui/UICatalog/UICatalog.csproj \
+          dotnet publish /tmp/terminal-gui/Examples/UICatalog/UICatalog.csproj \
             -c Release \
             -o /tmp/uicatalog \
             --verbosity quiet
