@@ -19,7 +19,9 @@ export async function renderGif(options: RenderOptions): Promise<void> {
   const { castPath, outputPath, gifConfig } = options;
 
   const aggPath = process.env.AGG_PATH ?? "agg";
-  const font = gifConfig?.font ?? "JetBrains Mono";
+  // Use an explicit font only when one is configured; fall back to agg's
+  // built-in bitmap font so the renderer works without any system fonts.
+  const font = gifConfig?.font ?? "";
   const fontSize = gifConfig?.fontSize ?? 14;
   const theme = gifConfig?.theme ?? "monokai";
   const speed = gifConfig?.speed ?? 1.0;
@@ -27,8 +29,6 @@ export async function renderGif(options: RenderOptions): Promise<void> {
   const args = [
     castPath,
     outputPath,
-    "--font-family",
-    font,
     "--font-size",
     String(fontSize),
     "--theme",
@@ -36,6 +36,12 @@ export async function renderGif(options: RenderOptions): Promise<void> {
     "--speed",
     String(speed),
   ];
+
+  // Only pass --font-family when a font name is explicitly provided;
+  // otherwise let agg use its built-in fallback font.
+  if (font) {
+    args.splice(2, 0, "--font-family", font);
+  }
 
   await runCommand(aggPath, args);
 }

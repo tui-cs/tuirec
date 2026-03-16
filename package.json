@@ -7,6 +7,7 @@
     "build": "tsc",
     "start:api": "node dist/api/server.js",
     "start:worker": "node dist/worker/worker.js",
+    "record": "ts-node src/cli/record.ts",
     "dev:api": "ts-node-dev --respawn src/api/server.ts",
     "dev:worker": "ts-node-dev --respawn src/worker/worker.ts",
     "lint": "eslint src --ext .ts",

@@ -1,0 +1,142 @@
+# TUIcast POC – UICatalog Recording
+#
+# Self-contained workflow that:
+#   1. Builds UICatalog from the Terminal.Gui repository.
+#   2. Records a short session via TUIcast's standalone recorder CLI.
+#   3. Verifies that a valid animated GIF was produced.
+#   4. Uploads the GIF (and raw cast file) as workflow artifacts.
+#
+# No Azure or Anthropic credentials are required.  The recorder uses a
+# deterministic keystroke script instead of the AI navigation loop.
+#
+# Trigger:
+#   - Manually via the GitHub UI ("Run workflow")
+#   - Automatically on push to this branch
+
+name: TUIcast POC – UICatalog GIF
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - copilot/add-tui-gif-generation-feature
+
+jobs:
+  record-uicatalog:
+    name: Record UICatalog and produce GIF
+    runs-on: ubuntu-latest
+    # Minimal GITHUB_TOKEN permissions – this job only reads the repository
+    # and uploads artifacts; no write access is required.
+    permissions:
+      contents: read
+
+    steps:
+      # ── Checkout TUIcast ────────────────────────────────────────────────────
+      - name: Checkout TUIcast
+        uses: actions/checkout@v4
+
+      # ── .NET 8 setup ────────────────────────────────────────────────────────
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # ── Build UICatalog ─────────────────────────────────────────────────────
+      # UICatalog is the official Terminal.Gui demo application.
+      # We publish a framework-dependent build (the .NET 8 runtime we just
+      # installed will satisfy the dependency).
+      - name: Clone Terminal.Gui
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/gui-cs/Terminal.Gui \
+            /tmp/terminal-gui
+
+      - name: Publish UICatalog
+        run: |
+          dotnet publish /tmp/terminal-gui/UICatalog/UICatalog.csproj \
+            -c Release \
+            -o /tmp/uicatalog \
+            --verbosity quiet
+          # Ensure the apphost binary is executable.
+          chmod +x /tmp/uicatalog/UICatalog
+          echo "UICatalog binary: $(ls -lh /tmp/uicatalog/UICatalog)"
+
+      # ── Node.js setup ───────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # node-pty is a native module; ensure the C++ build toolchain is present.
+      - name: Install native-module build tools
+        run: |
+          sudo apt-get install -y --no-install-recommends python3 make g++
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # ── agg (GIF renderer) ──────────────────────────────────────────────────
+      # agg is a CLI tool that converts asciinema cast files into animated GIFs.
+      # It ships as a static binary so no further installation steps are needed.
+      - name: Install agg
+        env:
+          AGG_VERSION: "1.5.0"
+        run: |
+          curl -fsSL \
+            "https://github.com/asciinema/agg/releases/download/v${AGG_VERSION}/agg-x86_64-unknown-linux-musl" \
+            -o /usr/local/bin/agg
+          chmod +x /usr/local/bin/agg
+          agg --version
+
+      # ── Record UICatalog ────────────────────────────────────────────────────
+      # Keystroke sequence:
+      #   wait:3000  – pause 3 s so the app fully renders its initial screen
+      #   ArrowDown  – move the selection down once (demonstrate navigation)
+      #   ArrowDown  – move again
+      #   wait:1000  – pause so the movement is visible in the GIF
+      #   Ctrl+Q     – quit UICatalog cleanly
+      - name: Record UICatalog session
+        run: |
+          npm run record -- \
+            --binary      /tmp/uicatalog/UICatalog \
+            --output      /tmp/uicatalog.gif \
+            --cast-output /tmp/uicatalog.cast \
+            --keystrokes  "wait:3000,ArrowDown,wait:500,ArrowDown,wait:1000,Ctrl+Q" \
+            --cols        132 \
+            --rows        40 \
+            --theme       monokai \
+            --speed       1.0 \
+            --max-duration 20 \
+            --title       "UICatalog – TUIcast POC"
+        env:
+          TERM: xterm-256color
+          COLORTERM: truecolor
+          # agg binary location (already on PATH after the install step above).
+          AGG_PATH: /usr/local/bin/agg
+
+      # ── Verify ─────────────────────────────────────────────────────────────
+      - name: Verify GIF was produced
+        run: |
+          if [ ! -f /tmp/uicatalog.gif ]; then
+            echo "❌ GIF file not found!" && exit 1
+          fi
+          SIZE=$(stat -c%s /tmp/uicatalog.gif)
+          if [ "$SIZE" -lt 1024 ]; then
+            echo "❌ GIF is suspiciously small (${SIZE} bytes)" && exit 1
+          fi
+          MAGIC=$(head -c 6 /tmp/uicatalog.gif)
+          if [[ "$MAGIC" != GIF89a && "$MAGIC" != GIF87a ]]; then
+            echo "❌ File does not have a valid GIF header" && exit 1
+          fi
+          echo "✅ GIF verified: $(du -h /tmp/uicatalog.gif | cut -f1)"
+
+      # ── Upload artifacts ────────────────────────────────────────────────────
+      - name: Upload recording artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: uicatalog-recording
+          path: |
+            /tmp/uicatalog.gif
+            /tmp/uicatalog.cast
+          if-no-files-found: error
