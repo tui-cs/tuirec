@@ -33,7 +33,7 @@ RUN curl -fsSL \
   && chmod +x /usr/local/bin/agg
 
 # Install the .NET SDK for GitHub-repo job sources (dotnet publish).
-RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir /usr/local/share/dotnet \
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/local/share/dotnet \
   && ln -s /usr/local/share/dotnet/dotnet /usr/local/bin/dotnet
 
 COPY package*.json ./

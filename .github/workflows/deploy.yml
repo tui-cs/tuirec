@@ -1,0 +1,87 @@
+name: Deploy to Azure
+
+# Runs on every push to main.
+# Requires the following GitHub Actions secrets (set by infra/setup.sh):
+#   AZURE_CREDENTIALS            – service principal JSON (az ad sp create-for-rbac --sdk-auth)
+#   AZURE_RESOURCE_GROUP         – e.g. tuicast-rg
+#   AZURE_ACR_NAME               – e.g. tuicast<uniqueid>
+#   AZURE_ACR_SERVER             – e.g. tuicast<uniqueid>.azurecr.io
+#   AZURE_API_APP_NAME           – e.g. tuicast-api
+#   AZURE_CONTAINER_ENV          – Container Apps environment name
+#   SERVICE_BUS_CONNECTION_STRING
+#   STORAGE_CONNECTION_STRING
+#   ANTHROPIC_API_KEY
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'spec.md'
+      - '.github/workflows/poc-*.yml'
+
+jobs:
+  deploy:
+    name: Build, push, and update Container App
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Azure login ─────────────────────────────────────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── ACR login ───────────────────────────────────────────────────────────
+      - name: Log in to ACR
+        run: az acr login --name ${{ secrets.AZURE_ACR_NAME }}
+
+      # ── Build and push API image ─────────────────────────────────────────────
+      - name: Build and push API image
+        run: |
+          docker build \
+            -t ${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:${{ github.sha }} \
+            -t ${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:latest \
+            -f Dockerfile.api .
+          docker push ${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:${{ github.sha }}
+          docker push ${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:latest
+
+      # ── Build and push worker image ──────────────────────────────────────────
+      - name: Build and push worker image
+        run: |
+          docker build \
+            -t ${{ secrets.AZURE_ACR_SERVER }}/tuicast-worker:${{ github.sha }} \
+            -t ${{ secrets.AZURE_ACR_SERVER }}/tuicast-worker:latest \
+            -f Dockerfile.worker .
+          docker push ${{ secrets.AZURE_ACR_SERVER }}/tuicast-worker:${{ github.sha }}
+          docker push ${{ secrets.AZURE_ACR_SERVER }}/tuicast-worker:latest
+
+      # ── Update Container App revision ────────────────────────────────────────
+      - name: Deploy new API revision
+        run: |
+          az containerapp update \
+            --name ${{ secrets.AZURE_API_APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image ${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:${{ github.sha }} \
+            --output none
+
+      # ── Print API URL in job summary ─────────────────────────────────────────
+      - name: Write deployment summary
+        run: |
+          FQDN=$(az containerapp show \
+            --name ${{ secrets.AZURE_API_APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          echo "## 🚀 Deployed to Azure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **API URL** | https://$FQDN |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ secrets.AZURE_ACR_SERVER }}/tuicast-api:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
