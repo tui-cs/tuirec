@@ -4,6 +4,7 @@ package gif
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -20,6 +21,9 @@ const (
 	defaultFontSize   = 14
 	defaultLineHeight = 1.0
 )
+
+// ErrValidation indicates that a rendered GIF failed validation.
+var ErrValidation = errors.New("gif validation failed")
 
 // Config controls agg GIF rendering.
 type Config struct {
@@ -73,27 +77,27 @@ func renderArgs(castPath, outputPath string, config Config) []string {
 func Validate(path string) (Validation, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return Validation{}, fmt.Errorf("open gif: %w", err)
+		return Validation{}, fmt.Errorf("%w: open gif: %w", ErrValidation, err)
 	}
 	defer file.Close()
 
 	decoded, err := stdgif.DecodeAll(file)
 	if err != nil {
-		return Validation{}, fmt.Errorf("decode gif: %w", err)
+		return Validation{}, fmt.Errorf("%w: decode gif: %w", ErrValidation, err)
 	}
 
 	if len(decoded.Image) < 2 {
-		return Validation{}, fmt.Errorf("gif has %d frame(s), want at least 2", len(decoded.Image))
+		return Validation{}, fmt.Errorf("%w: gif has %d frame(s), want at least 2", ErrValidation, len(decoded.Image))
 	}
 
 	bounds := decoded.Image[0].Bounds()
 	if bounds.Dx() == 0 || bounds.Dy() == 0 {
-		return Validation{}, fmt.Errorf("gif dimensions are zero")
+		return Validation{}, fmt.Errorf("%w: gif dimensions are zero", ErrValidation)
 	}
 
 	variance := pixelVariance(decoded)
 	if variance == 0 {
-		return Validation{}, fmt.Errorf("gif frames have no pixel variance")
+		return Validation{}, fmt.Errorf("%w: gif frames have no pixel variance", ErrValidation)
 	}
 
 	return Validation{
