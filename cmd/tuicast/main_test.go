@@ -192,6 +192,11 @@ func TestRecordCommandExitCodes(t *testing.T) {
 			want: exitUsage,
 		},
 		{
+			name: "usage unknown key",
+			args: []string{"record", "--binary", "demo-app", "--keystrokes", "Ctrl-Foo"},
+			want: exitUsage,
+		},
+		{
 			name: "missing prerequisite",
 			args: []string{"record", "--binary", "demo-app"},
 			look: func(string) (string, error) {

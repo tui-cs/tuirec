@@ -95,6 +95,10 @@ tuicast record \
   --output demo.gif
 ```
 
+Key modifiers accept Terminal.Gui-style `+` or `-` separators (`Ctrl+C` and
+`Ctrl-C` both work). Unknown key-like tokens such as `Ctrl-Foo` fail fast
+instead of being typed as literal text.
+
 ## Status
 
 🚧 **Pre-alpha** — rewriting from Node.js prototype to Go. See [spec.md](spec.md) for the v1 plan.

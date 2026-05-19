@@ -229,15 +229,20 @@ literal  = (* anything else: typed verbatim, rune by rune *) ;
 
 1. Matches `wait:<digits>` → delay that many ms (no extra keystroke-delay after).
 2. Matches `click:<int>:<int>` → SGR mouse click (see table).
-3. Exactly equals a Named-Key table entry (case-sensitive) → its sequence.
-4. Otherwise → literal; type each rune with `--keystroke-delay` between runes.
+3. Matches a Named-Key table entry (case-sensitive, with `+` or `-`
+   accepted as the modifier separator for `Ctrl`/`Alt`) → its sequence.
+4. Key-like unknown tokens are errors instead of literals. This includes
+   malformed `wait:`/`click:` tokens, unknown `Ctrl`/`Alt` combinations,
+   unknown `Arrow*`/`Page*` names, and unsupported function keys.
+5. Otherwise → literal; type each rune with `--keystroke-delay` between runes.
 
 ### Separators & escaping
 
 - List separator is `,`. Literal comma = `\,`; literal backslash = `\\`.
 - `click` uses `:` sub-separators — PR #1 chose `:` specifically to avoid
   the `,` list-separator conflict. Keep that.
-- Key names are **case-sensitive**: `Ctrl+C` ≠ `Ctrl+c`.
+- Key names are **case-sensitive**: `Ctrl+C` and `Ctrl-C` are valid;
+  `Ctrl+c` is invalid.
 - Named keys and clicks are followed by one `--keystroke-delay`.
 - Default `--keystrokes` is `wait:3000,Ctrl+C`. Many TUIs ignore `Ctrl+C`;
   document that the default commonly relies on `--max-duration` teardown
@@ -264,8 +269,8 @@ were missing there and are added here** — every row needs a unit test.
 | `F6` | `\x1b[17~` | `F7` | `\x1b[18~` |
 | `F8` | `\x1b[19~` | `F9` | `\x1b[20~` |
 | `F10` | `\x1b[21~` | `F11` | `\x1b[23~` |
-| `F12` | `\x1b[24~` | `Ctrl+A`…`Ctrl+Z` | `\x01`…`\x1a` |
-| `Alt+<char>` | `\x1b` + `<char>` | | |
+| `F12` | `\x1b[24~` | `Ctrl+A`…`Ctrl+Z` / `Ctrl-A`…`Ctrl-Z` | `\x01`…`\x1a` |
+| `Alt+<char>` / `Alt-<char>` | `\x1b` + `<char>` | | |
 
 Mouse: `click:col:row` → SGR press+release, 1-based:
 `\x1b[<0;col;rowM` immediately followed by `\x1b[<0;col;rowm`.

@@ -3,6 +3,7 @@ package keystroke
 
 import (
 	"fmt"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -77,12 +78,17 @@ func resolveFixedNamedKey(name string) (string, bool) {
 }
 
 func resolveCtrlLetter(name string) (string, bool) {
-	var r rune
-	if _, err := fmt.Sscanf(name, "Ctrl+%c", &r); err != nil {
+	rest, ok := modifierRest(name, "Ctrl")
+	if !ok {
 		return "", false
 	}
 
-	if r < 'A' || r > 'Z' || len(name) != len("Ctrl+A") {
+	var r rune
+	if _, err := fmt.Sscanf(rest, "%c", &r); err != nil {
+		return "", false
+	}
+
+	if r < 'A' || r > 'Z' || len(rest) != len("A") {
 		return "", false
 	}
 
@@ -90,16 +96,26 @@ func resolveCtrlLetter(name string) (string, bool) {
 }
 
 func resolveAltChar(name string) (string, bool) {
-	prefix := "Alt+"
-	if len(name) <= len(prefix) || name[:len(prefix)] != prefix {
+	rest, ok := modifierRest(name, "Alt")
+	if !ok {
 		return "", false
 	}
 
-	rest := name[len(prefix):]
 	r, size := utf8.DecodeRuneInString(rest)
 	if r == utf8.RuneError || size != len(rest) {
 		return "", false
 	}
 
 	return "\x1b" + string(r), true
+}
+
+func modifierRest(name, modifier string) (string, bool) {
+	for _, separator := range []string{"+", "-"} {
+		prefix := modifier + separator
+		if strings.HasPrefix(name, prefix) && len(name) > len(prefix) {
+			return name[len(prefix):], true
+		}
+	}
+
+	return "", false
 }

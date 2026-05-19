@@ -47,7 +47,11 @@ func Parse(script string) ([]Action, error) {
 }
 
 func parseToken(token string) (Action, error) {
-	if milliseconds, ok := parseWait(token); ok {
+	if milliseconds, ok, err := parseWait(token); ok || err != nil {
+		if err != nil {
+			return Action{}, err
+		}
+
 		return Action{Kind: Wait, Delay: time.Duration(milliseconds) * time.Millisecond}, nil
 	}
 
@@ -59,21 +63,29 @@ func parseToken(token string) (Action, error) {
 		return Action{Kind: Write, Sequence: sequence}, nil
 	}
 
+	if looksLikeKey(token) {
+		return Action{}, fmt.Errorf("unknown key: %s", token)
+	}
+
 	return Action{Kind: Literal, Sequence: token}, nil
 }
 
-func parseWait(token string) (int, bool) {
+func parseWait(token string) (int, bool, error) {
 	value, ok := strings.CutPrefix(token, "wait:")
-	if !ok || value == "" || !allDigits(value) {
-		return 0, false
+	if !ok {
+		return 0, false, nil
+	}
+
+	if value == "" || !allDigits(value) {
+		return 0, true, fmt.Errorf("invalid wait token: %s", token)
 	}
 
 	milliseconds, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, false
+		return 0, true, fmt.Errorf("parse wait duration: %w", err)
 	}
 
-	return milliseconds, true
+	return milliseconds, true, nil
 }
 
 func parseClick(token string) (string, bool, error) {
@@ -84,7 +96,7 @@ func parseClick(token string) (string, bool, error) {
 
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 || !allDigits(parts[0]) || !allDigits(parts[1]) {
-		return "", false, nil
+		return "", true, fmt.Errorf("invalid click token: %s", token)
 	}
 
 	col, err := strconv.Atoi(parts[0])
@@ -102,6 +114,52 @@ func parseClick(token string) (string, bool, error) {
 	}
 
 	return fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", col, row, col, row), true, nil
+}
+
+func looksLikeKey(token string) bool {
+	if rest, ok := modifierRest(token, "Ctrl"); ok {
+		return isKeyIdentifier(rest)
+	}
+	if rest, ok := modifierRest(token, "Alt"); ok {
+		return startsWithUpperIdentifier(rest)
+	}
+	if strings.HasPrefix(token, "Ctrl+") || strings.HasPrefix(token, "Ctrl-") {
+		return true
+	}
+	if strings.HasPrefix(token, "Alt+") || strings.HasPrefix(token, "Alt-") {
+		return len(token) == len("Alt+") || startsWithUpperIdentifier(token[len("Alt+"):])
+	}
+	if isKeyIdentifier(token) && (strings.HasPrefix(token, "Arrow") || strings.HasPrefix(token, "Page")) {
+		return true
+	}
+	if strings.HasPrefix(token, "F") && len(token) > 1 && allDigits(token[1:]) {
+		return true
+	}
+
+	return false
+}
+
+func isKeyIdentifier(token string) bool {
+	if token == "" {
+		return false
+	}
+
+	for _, r := range token {
+		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+
+	return true
+}
+
+func startsWithUpperIdentifier(token string) bool {
+	if token == "" {
+		return false
+	}
+
+	first := token[0]
+	return first >= 'A' && first <= 'Z' && isKeyIdentifier(token)
 }
 
 func splitTokens(script string) ([]string, error) {

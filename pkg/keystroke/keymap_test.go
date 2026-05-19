@@ -78,6 +78,19 @@ func TestResolveCtrlLetters(t *testing.T) {
 	}
 }
 
+func TestResolveCtrlLettersWithHyphen(t *testing.T) {
+	t.Parallel()
+
+	got, ok := ResolveNamedKey("Ctrl-A")
+	if !ok {
+		t.Fatalf("ResolveNamedKey(Ctrl-A) ok = false, want true")
+	}
+
+	if got != "\x01" {
+		t.Fatalf("ResolveNamedKey(Ctrl-A) = %q, want %q", got, "\x01")
+	}
+}
+
 func TestResolveAltChar(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +101,19 @@ func TestResolveAltChar(t *testing.T) {
 
 	if got != "\x1bx" {
 		t.Fatalf("ResolveNamedKey(Alt+x) = %q, want %q", got, "\x1bx")
+	}
+}
+
+func TestResolveAltCharWithHyphen(t *testing.T) {
+	t.Parallel()
+
+	got, ok := ResolveNamedKey("Alt-x")
+	if !ok {
+		t.Fatalf("ResolveNamedKey(Alt-x) ok = false, want true")
+	}
+
+	if got != "\x1bx" {
+		t.Fatalf("ResolveNamedKey(Alt-x) = %q, want %q", got, "\x1bx")
 	}
 }
 
