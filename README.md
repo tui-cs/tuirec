@@ -20,7 +20,7 @@ go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
 
 Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases).
 
-**Prerequisite:** [agg](https://github.com/asciinema/agg) must be on your PATH (for GIF rendering).
+**Prerequisite:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast does not vendor `agg`; install it on your PATH or pass `-agg-path` to the demo commands.
 
 ## Build and Run Locally on Windows
 
@@ -46,17 +46,27 @@ If `agg` is installed on your PATH, run the GIF renderer integration test:
 go test -tags integration .\pkg\gif
 ```
 
+To install the pinned `agg` binary locally for demos on Windows:
+
+```powershell
+New-Item -ItemType Directory -Force .\tools | Out-Null
+Invoke-WebRequest `
+  https://github.com/asciinema/agg/releases/download/v1.5.0/agg-x86_64-pc-windows-msvc.exe `
+  -OutFile .\tools\agg.exe
+.\tools\agg.exe --version
+```
+
 To create and open a visible demo GIF from the bundled cast fixture:
 
 ```powershell
-go run .\examples\render-gif -output .\demo.gif
+go run .\examples\render-gif -agg-path .\tools\agg.exe -output .\demo.gif
 Invoke-Item .\demo.gif
 ```
 
 To exercise the full package pipeline against the bundled test TUI and open the result:
 
 ```powershell
-go run .\examples\record-pipeline -output .\pipeline-demo.gif -cast-output .\pipeline-demo.cast
+go run .\examples\record-pipeline -agg-path .\tools\agg.exe -output .\pipeline-demo.gif -cast-output .\pipeline-demo.cast
 Invoke-Item .\pipeline-demo.gif
 ```
 

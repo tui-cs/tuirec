@@ -1,0 +1,20 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Go build/test outputs
+/bin/
+/build/
+/dist/
+*.exe
+*.test
+*.out
+*.prof
+coverage.*
+
+# Local third-party tools downloaded for demos
+/tools/
+
+# Root-level demo artifacts. Test fixtures under package testdata stay tracked.
+/*.cast
+/*.gif
