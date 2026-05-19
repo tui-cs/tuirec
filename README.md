@@ -56,6 +56,8 @@ Invoke-WebRequest `
 .\tools\agg.exe --version
 ```
 
+On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `-agg-path`.
+
 To create and open a visible demo GIF from the bundled cast fixture:
 
 ```powershell
