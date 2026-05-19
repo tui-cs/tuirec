@@ -1,6 +1,6 @@
 # TUIcast Constitution
 
-**Version**: 1.1 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
+**Version**: 1.2 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
 
 This constitution governs all contributions to `gui-cs/TUIcast`. It is the highest-authority document in the repository — PRs that violate it are rejected with a link to the specific rule.
 
@@ -110,7 +110,7 @@ Platform-specific implementations live in `_unix.go` / `_windows.go` / `_darwin.
 
 ### R5 — Tests are fast and parallelizable
 
-Unit tests (`go test ./...`) must complete in < 5 seconds total. Tests that spawn real processes or invoke `agg` are integration tests (tagged `//go:build integration`). Unit tests must not depend on external binaries.
+Unit tests (`go test ./...`) must complete in < 5 seconds total and must not depend on external binaries, the network, or fixtures outside the repo. A test **may** spawn a real PTY/ConPTY or an in-repo helper process (e.g. `internal/testapp`) and still be a unit test, provided it stays fast and self-contained. The `//go:build integration` tag is reserved for tests that require `agg` or exercise the full cast→GIF pipeline, plus any test driving an external target app. Rationale: PTY round-trip is the core contract of `pkg/pty` and must be exercised by the default `go test ./...` on every OS — including Windows — not hidden behind a tag.
 
 ### R6 — The key map is complete and tested
 
@@ -134,14 +134,18 @@ Fail fast with a clear error message. Don't record for 60 seconds then fail at t
 
 | Tier | Tag | What it tests | Speed |
 |------|-----|---------------|-------|
-| Unit | (none) | Pure logic: key map, cast writer, script parser | < 5s total |
-| Integration | `integration` | Real PTY + real processes + agg | < 60s total |
+| Unit | (none) | Pure logic (key map, cast writer, script parser) **and** fast self-contained real-PTY / in-repo-process tests | < 5s total |
+| Integration | `integration` | `agg` invocation + full cast→GIF pipeline + external target apps | < 60s total |
 
 ### CI Matrix
 
 All tests run on: `ubuntu-latest`, `macos-latest`, `windows-latest`.
 
-Integration tests may skip on Windows until ConPTY support lands (Phase 7).
+ConPTY support has landed (the Phase 1 spike, PR #3, proved
+`github.com/UserExistsError/conpty` works). `pkg/pty` unit tests
+therefore run untagged on Windows too. The `integration` (agg / full
+GIF) job remains Linux + macOS only until an agg-on-Windows install is
+wired into CI — a tracked follow-up, not a ConPTY blocker.
 
 ### Conventions
 

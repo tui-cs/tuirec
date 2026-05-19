@@ -126,7 +126,7 @@ Minimize external dependencies. Current expected deps:
 | Package | Purpose |
 |---------|---------|
 | `github.com/creack/pty` | Unix PTY |
-| `github.com/iamacarpet/go-conpty` | Windows ConPTY |
+| `github.com/UserExistsError/conpty` | Windows ConPTY |
 | `github.com/spf13/cobra` | CLI framework |
 | (stdlib) | Everything else |
 
@@ -162,7 +162,11 @@ func TestKeyMap(t *testing.T) {
 
 ### Integration Tests
 
-Tests that spawn real PTY processes or invoke `agg` are tagged:
+Spawning a real PTY/ConPTY or an in-repo helper process is **not** by
+itself integration — if the test is fast and self-contained it stays an
+untagged unit test (see constitution R5). The `integration` tag is
+reserved for tests that require `agg` or exercise the full cast→GIF
+pipeline, plus any test driving an external target app:
 
 ```go
 //go:build integration
@@ -172,7 +176,7 @@ package record_test
 
 Run them explicitly: `go test -tags integration ./...`
 
-Integration tests are allowed to be slow and to require `agg` on PATH. Unit tests must be fast and self-contained.
+Integration tests are allowed to be slow and to require `agg` on PATH. Unit tests must be fast and self-contained (but may spawn an in-repo PTY child).
 
 ### CI Matrix
 
@@ -195,8 +199,8 @@ Don't accidentally pursue these:
 
 See `spec.md` § "Key Risks" for known unknowns. Key open questions:
 
-1. Windows ConPTY library choice — `go-conpty` vs raw syscalls vs something else
-2. Whether to bundle `agg` or require it as a prerequisite
+1. ~~Windows ConPTY library choice~~ — **Resolved:** `github.com/UserExistsError/conpty` (the earlier-referenced `iamacarpet/go-conpty` does not exist). Proven by the Phase 1 spike (PR #3). Windows is folded back into Phase 1.
+2. ~~Whether to bundle `agg` or require it~~ — **Resolved:** require it; pin `agg v1.5.0` (see `spec.md` Decisions). Bundling deferred post-v1.
 3. Mouse event encoding format (currently `click:col:row` from prototype)
 
 If a task touches one of these, surface the decision rather than picking unilaterally.

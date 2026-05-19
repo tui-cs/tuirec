@@ -17,7 +17,9 @@ Rewrite TUIcast as a **cross-platform Go CLI** that records any terminal app and
 | Platforms | Windows (ConPTY), macOS, Linux | Cross-platform from day one |
 | GIF renderer | agg (external binary) | Proven in prototype; MIT; static binary |
 | Recording format | asciinema v2 cast (native) | Simple JSON-lines; no AGPL dependency |
-| PTY driver deps | `pkg/pty` may import `creack/pty` (Unix) + a ConPTY lib (Windows) | Resolves the constitution R1 conflict; amended to R1 v1.1. Hand-rolling `forkpty`/ConPTY is out of scope |
+| PTY driver deps | `pkg/pty` may import `github.com/creack/pty` (Unix) + `github.com/UserExistsError/conpty` (Windows) | Resolves the constitution R1 conflict; amended to R1 v1.1. Hand-rolling `forkpty`/ConPTY is out of scope |
+| Windows ConPTY library | `github.com/UserExistsError/conpty` | Resolves CLAUDE.md open decision #1. The previously-referenced `iamacarpet/go-conpty` **does not exist** as a module. `UserExistsError/conpty` builds and passes on Windows — proven by the Phase 1 spike (PR #3) |
+| Windows in v1 | **In scope — folded back into Phase 1** (not a deferred spike) | PR #3 is the spike evidence: ConPTY works. Cross-platform PTY is a Phase 1 deliverable again. The only Windows item still deferred is agg-on-Windows in CI for full-GIF integration |
 | Module path | `github.com/gui-cs/TUIcast` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
 | agg distribution | Require as a prerequisite; **pin agg `v1.5.0`** | Resolves open decision "bundle vs require". CI installs it per-OS (see CI section). Bundling deferred post-v1 |
 | Recording clock | Support a deterministic (scripted) clock in addition to wall-clock | Wall-clock timing makes GIFs non-reproducible and CI flaky; scripted timing enables golden-GIF regression |
@@ -159,7 +161,7 @@ tuicast record \
 | Package | Purpose | Notes |
 |---------|---------|-------|
 | `creack/pty` | Unix PTY spawn | Linux + macOS |
-| `iamacarpet/go-conpty` | Windows ConPTY | Windows |
+| `github.com/UserExistsError/conpty` | Windows ConPTY | Windows (`iamacarpet/go-conpty` does not exist — do not use) |
 | `cobra` or `pflag` | CLI argument parsing | |
 | `os/exec` | Invoke agg | |
 | (stdlib) | JSON, time, IO | asciinema recorder is ~50 lines |
@@ -283,29 +285,32 @@ likely to hang or race; implement it as specified:
   short grace period (default ~500ms, ≥ `--keystroke-delay`) so the final
   UI frame lands in the cast — without it the GIF cuts off before the
   result is visible. This directly affects whether output "works great".
-- On Unix, a PTY read returning `EIO` (`input/output error`) after the
-  child exits is **normal EOF, not a failure** — treat as clean stream
-  end. The agent will otherwise report failure on every successful run.
+- Read-after-exit must be normalized to `io.EOF` per platform: on Unix a
+  PTY read returning `EIO` (`input/output error`) after the child exits is
+  **normal EOF, not a failure**; on Windows ConPTY the equivalent
+  closed-pipe / broken-pipe error after exit is likewise EOF. `pkg/pty`
+  owns this normalization so callers see a single clean stream end —
+  otherwise every successful run reports a spurious failure.
 - On ctx deadline, kill the child (process group) and exit 4.
 - Verify with the race detector: `go test -race ./pkg/record`.
 
 ## Implementation Phases
 
 Every exit gate is a **runnable command**, not prose — that is what makes
-the build self-verifying and autonomous. Risk is front-loaded: the ConPTY
-spike runs early and in parallel, not buried in Phase 1.
+the build self-verifying and autonomous. The Windows ConPTY spike already
+ran (PR #3) and resolved **go**, so Phase 1 is cross-platform: there is no
+separate spike row and no Unix-only fallback.
 
 | Phase | Scope | Verifiable Exit Gate |
 |-------|-------|----------------------|
 | 0 | Scaffold: `go.mod` (canonical path), package skeletons, `internal/testapp`, CI wired with pinned `agg` | `go build ./...`, `go vet ./...`, `golangci-lint run ./...` green on the CI matrix |
-| 1 | Unix PTY session (`creack/pty`) | `go test ./pkg/pty` (Unix): spawn testapp, send `Ctrl+Q`, assert clean exit; `EIO`-after-exit handled as EOF |
+| 1 | **Cross-platform** PTY session: Unix `creack/pty` + Windows `UserExistsError/conpty` | `go test ./pkg/pty` (untagged) green on ubuntu + macOS + windows: spawn `internal/testapp`, send `Ctrl+Q`, assert clean exit; platform read-after-exit (`EIO` on Unix, ConPTY close on Windows) normalized to EOF |
 | 2 | asciinema v2 recorder (streaming, UTF-8-safe, scripted clock) | `go test ./pkg/recorder`: golden `.cast` byte-match + split-rune test |
 | 3 | Keystroke player + complete key map | `go test ./pkg/keystroke`: a row for **every** Named-Key entry (R6) + grammar/escaping tests |
 | 4 | GIF renderer | `go test -tags integration ./pkg/gif`: render fixture cast, decode GIF, assert ≥ 2 frames + pixel variance + golden frame |
 | 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race |
 | 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuicast`: flag parsing + exit-code table; `--help` snapshot |
-| 7 | End-to-end integration (Unix) | `go test -tags integration ./...` green on ubuntu + macOS: testapp → validated GIF |
-| Spike | **Windows ConPTY** — start early, run parallel to 1–3, timeboxed | **Go/no-go decision (explicit, not silent):** if ConPTY input injection + the key map work within the timebox, fold Windows into phases 1 & 7. If not, ship v1 **Unix-only**, Windows integration skipped, ConPTY tracked as the first post-v1 item. Surface the decision per CLAUDE.md open-decision rule. |
+| 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: `internal/testapp` → validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration is a tracked follow-up (needs agg-on-Windows in CI), not a v1 blocker |
 
 ---
 
@@ -334,9 +339,11 @@ spike runs early and in parallel, not buried in Phase 1.
   build + unit tests + `go vet` on ubuntu/macOS/windows, `golangci-lint`
   on ubuntu, and an integration job that installs **pinned `agg v1.5.0`**
   per-OS (Linux `x86_64-unknown-linux-musl`, macOS `aarch64-apple-darwin`)
-  then runs `go test -tags integration ./...`. Windows integration is
-  deferred pending the ConPTY go/no-go. Implementation must match this
-  workflow, not diverge from it.
+  then runs `go test -tags integration ./...`. The untagged unit job
+  already runs on `windows-latest`, so cross-platform `pkg/pty` tests
+  (incl. ConPTY) are covered there. The `integration` job stays
+  Linux + macOS until an agg-on-Windows install is added (tracked
+  follow-up). Implementation must match this workflow, not diverge.
 - Recommended hardening: pin `golangci-lint-action` to a fixed version
   instead of `latest` (a new lint release otherwise breaks CI out of band)
   and commit a minimal `.golangci.yml` documenting the enabled linters.
@@ -375,6 +382,9 @@ Encode these so they are **not** rediscovered:
   bugs; Go reads raw PTY **bytes** — split runes must be buffered (FR-3).
 - The prototype recorder buffered all events in memory — do not port that;
   stream to disk.
+- `github.com/iamacarpet/go-conpty` (named in early drafts) **does not
+  exist** as a Go module. The working Windows ConPTY library is
+  `github.com/UserExistsError/conpty` (Phase 1 spike, PR #3).
 - If anyone records an external Terminal.Gui app instead of the testapp:
   it has no `main` branch (use `v2_develop`), targets `net10.0`, and
   UICatalog lives at `Examples/UICatalog/UICatalog.csproj`. v1 should
@@ -384,7 +394,7 @@ Encode these so they are **not** rediscovered:
 
 | Risk | Mitigation |
 |------|-----------|
-| Windows ConPTY quirks | Early timeboxed spike with an **explicit go/no-go**; v1 may ship Unix-only with ConPTY as the first post-v1 item rather than blocking |
+| Windows ConPTY quirks | **Resolved:** spike (PR #3) proved `github.com/UserExistsError/conpty` builds + passes on Windows; folded into Phase 1. Residual: agg-on-Windows in CI for full-GIF integration (tracked follow-up, not a blocker) |
 | agg not available on all platforms | Pinned `agg v1.5.0`, installed per-OS in CI; required-vs-skip behavior defined; documented prerequisite for users |
 | Key map incompleteness | Full normative table in-spec (incl. the F11/F12/`Alt` gaps the prototype had); R6 unit test per row; the `Ctrl+Q` bug is the testapp's exit path |
 | Weak success signal | GIF validation decodes frames + asserts pixel variance + golden compare, not just magic bytes |
@@ -402,8 +412,10 @@ v1 is done when:
    pixel variance** (not just valid magic bytes)
 2. Every phase exit gate passes: `go test ./...`, `go test -race ./pkg/record`,
    and `go test -tags integration ./...` green
-3. Works on Linux and macOS; Windows per the ConPTY go/no-go (Unix-only is
-   an acceptable v1 outcome if ConPTY is deferred — decided explicitly)
+3. PTY recording works on Linux, macOS, **and Windows** (ConPTY); the
+   full cast→GIF pipeline is validated on Linux + macOS, with Windows
+   full-GIF integration as a tracked follow-up (agg-on-Windows in CI)
 4. Single binary, no runtime deps beyond pinned `agg v1.5.0`
 5. README with install instructions and usage examples
-6. CI green on the matrix (Windows integration may be skipped per go/no-go)
+6. CI green on the matrix (untagged tests incl. `pkg/pty` on all 3 OSes;
+   `integration` job on Linux + macOS)
