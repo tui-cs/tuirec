@@ -97,5 +97,6 @@ func commandLine(binary string, args []string) string {
 func isConPTYEOF(err error) bool {
 	return errors.Is(err, os.ErrClosed) ||
 		errors.Is(err, syscall.ERROR_BROKEN_PIPE) ||
+		errors.Is(err, syscall.Errno(6)) ||
 		errors.Is(err, syscall.Errno(233))
 }

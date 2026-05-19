@@ -1,0 +1,3 @@
+{"version":2,"width":80,"height":24,"timestamp":1710000000,"title":"fixture","env":{"TERM":"xterm-256color"}}
+[0,"o","hello\r\n"]
+[1.5,"o","world\n"]
