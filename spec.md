@@ -314,7 +314,8 @@ row and no Unix-only fallback.
 | 4 | GIF renderer | `go test -tags integration ./pkg/gif`: render fixture cast, decode GIF, assert >= 2 frames + pixel variance + golden frame | `go run ./examples/render-gif -output ./demo.gif`, then open `demo.gif`. The demo auto-detects `./tools/agg.exe`/`./tools/agg` before PATH. |
 | 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race | `go run ./examples/record-pipeline -output ./pipeline-demo.gif -cast-output ./pipeline-demo.cast`, then open `pipeline-demo.gif`. The demo auto-detects `./tools/agg.exe`/`./tools/agg` before PATH. |
 | 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuicast`: flag parsing + exit-code table; `--help` snapshot | `go run ./cmd/tuicast record --binary go --args run,./internal/testapp --keystrokes "wait:1000,Ctrl+Q" --output ./cli-demo.gif --cast-output ./cli-demo.cast`, then open `cli-demo.gif`. |
-| 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: real `tuicast record` command + `internal/testapp` -> validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration is a tracked follow-up (needs agg-on-Windows in CI), not a v1 blocker | Same CLI command as Phase 6, documented as the canonical README quickstart using `internal/testapp`. |
+| 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: real `tuicast record` command + `internal/testapp` -> validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration follows in Phase 8. | Same CLI command as Phase 6, documented as the canonical README quickstart using `internal/testapp`. |
+| 8 | Windows full-GIF integration | `go test -tags integration ./...` green on ubuntu + macOS + windows: CI installs pinned `agg v1.5.0` on Windows and runs the real CLI `internal/testapp` -> validated GIF path there too. | Same canonical CLI demo on Windows, using repo-local `tools\agg.exe` or `agg` on PATH. |
 
 ---
 
@@ -342,12 +343,10 @@ row and no Unix-only fallback.
 - `.github/workflows/ci.yml` — already present. Pins **Go 1.22**, runs
   build + unit tests + `go vet` on ubuntu/macOS/windows, `golangci-lint`
   on ubuntu, and an integration job that installs **pinned `agg v1.5.0`**
-  per-OS (Linux `x86_64-unknown-linux-musl`, macOS `aarch64-apple-darwin`)
-  then runs `go test -tags integration ./...`. The untagged unit job
-  already runs on `windows-latest`, so cross-platform `pkg/pty` tests
-  (incl. ConPTY) are covered there. The `integration` job stays
-  Linux + macOS until an agg-on-Windows install is added (tracked
-  follow-up). Implementation must match this workflow, not diverge.
+  per-OS (Linux `x86_64-unknown-linux-musl`, macOS `aarch64-apple-darwin`,
+  Windows `x86_64-pc-windows-msvc.exe`) then runs
+  `go test -tags integration ./...`. The Windows integration job exercises
+  both ConPTY and the full cast→GIF path.
 - Recommended hardening: pin `golangci-lint-action` to a fixed version
   instead of `latest` (a new lint release otherwise breaks CI out of band)
   and commit a minimal `.golangci.yml` documenting the enabled linters.
@@ -398,7 +397,7 @@ Encode these so they are **not** rediscovered:
 
 | Risk | Mitigation |
 |------|-----------|
-| Windows ConPTY quirks | **Resolved:** spike (PR #3) proved `github.com/UserExistsError/conpty` builds + passes on Windows; folded into Phase 1. Residual: agg-on-Windows in CI for full-GIF integration (tracked follow-up, not a blocker) |
+| Windows ConPTY quirks | **Resolved:** spike (PR #3) proved `github.com/UserExistsError/conpty` builds + passes on Windows; folded into Phase 1. Full Windows cast→GIF integration is covered by the CI integration job. |
 | agg not available on all platforms | Pinned `agg v1.5.0`, installed per-OS in CI; required-vs-skip behavior defined; documented prerequisite for users |
 | Key map incompleteness | Full normative table in-spec (incl. the F11/F12/`Alt` gaps the prototype had); R6 unit test per row; the `Ctrl+Q` bug is the testapp's exit path |
 | Weak success signal | GIF validation decodes frames + asserts pixel variance + golden compare, not just magic bytes |
@@ -417,10 +416,9 @@ v1 is done when:
    pixel variance** (not just valid magic bytes)
 2. Every phase exit gate passes: `go test ./...`, `go test -race ./pkg/record`,
    and `go test -tags integration ./...` green
-3. PTY recording works on Linux, macOS, **and Windows** (ConPTY); the
-   full cast→GIF pipeline is validated on Linux + macOS, with Windows
-   full-GIF integration as a tracked follow-up (agg-on-Windows in CI)
+3. PTY recording and the full cast→GIF pipeline work on Linux, macOS,
+   **and Windows** (ConPTY)
 4. Single binary, no runtime deps beyond pinned `agg v1.5.0`
 5. README with install instructions and usage examples
-6. CI green on the matrix (untagged tests incl. `pkg/pty` on all 3 OSes;
-   `integration` job on Linux + macOS)
+6. CI green on the matrix (untagged tests and `integration` job on Linux,
+   macOS, and Windows)
