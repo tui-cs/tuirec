@@ -275,6 +275,8 @@ func TestRecordHelpSnapshot(t *testing.T) {
 	help := stdout.String()
 	for _, want := range []string{
 		"Record a terminal app",
+		"Terminal.Gui Key strings",
+		"Ctrl+Alt+Shift+CursorUp",
 		"--binary string",
 		"--keystrokes string",
 		"--cast-output string",

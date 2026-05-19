@@ -59,7 +59,11 @@ func parseToken(token string) (Action, error) {
 		return Action{Kind: Write, Sequence: sequence}, err
 	}
 
-	if sequence, ok := ResolveNamedKey(token); ok {
+	if sequence, ok, err := resolveTerminalGUIKey(token); ok || err != nil {
+		if err != nil {
+			return Action{}, err
+		}
+
 		return Action{Kind: Write, Sequence: sequence}, nil
 	}
 
@@ -123,20 +127,46 @@ func looksLikeKey(token string) bool {
 	if rest, ok := modifierRest(token, "Alt"); ok {
 		return startsWithUpperIdentifier(rest)
 	}
-	if strings.HasPrefix(token, "Ctrl+") || strings.HasPrefix(token, "Ctrl-") {
+	if rest, ok := modifierRest(token, "Shift"); ok {
+		return isKeyIdentifier(rest)
+	}
+	if hasModifierPrefix(token, "Ctrl") {
 		return true
 	}
-	if strings.HasPrefix(token, "Alt+") || strings.HasPrefix(token, "Alt-") {
+	if hasModifierPrefix(token, "Alt") {
 		return len(token) == len("Alt+") || startsWithUpperIdentifier(token[len("Alt+"):])
 	}
-	if isKeyIdentifier(token) && (strings.HasPrefix(token, "Arrow") || strings.HasPrefix(token, "Page")) {
+	if hasModifierPrefix(token, "Shift") {
 		return true
 	}
-	if strings.HasPrefix(token, "F") && len(token) > 1 && allDigits(token[1:]) {
+	lower := strings.ToLower(token)
+	if isKeyIdentifier(token) && (strings.HasPrefix(lower, "arrow") || strings.HasPrefix(lower, "cursor") || strings.HasPrefix(lower, "page")) {
+		return true
+	}
+	if (strings.HasPrefix(token, "F") || strings.HasPrefix(token, "f")) && len(token) > 1 && allDigits(token[1:]) {
 		return true
 	}
 
 	return false
+}
+
+func modifierRest(token, modifier string) (string, bool) {
+	for _, separator := range []string{"+", "-"} {
+		prefix := modifier + separator
+		if len(token) > len(prefix) && strings.EqualFold(token[:len(prefix)], prefix) {
+			return token[len(prefix):], true
+		}
+	}
+
+	return "", false
+}
+
+func hasModifierPrefix(token, modifier string) bool {
+	if len(token) <= len(modifier) {
+		return false
+	}
+
+	return strings.EqualFold(token[:len(modifier)], modifier) && (token[len(modifier)] == '+' || token[len(modifier)] == '-')
 }
 
 func isKeyIdentifier(token string) bool {

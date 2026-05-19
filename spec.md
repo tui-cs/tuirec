@@ -229,11 +229,10 @@ literal  = (* anything else: typed verbatim, rune by rune *) ;
 
 1. Matches `wait:<digits>` → delay that many ms (no extra keystroke-delay after).
 2. Matches `click:<int>:<int>` → SGR mouse click (see table).
-3. Matches a Named-Key table entry (case-sensitive, with `+` or `-`
-   accepted as the modifier separator for `Ctrl`/`Alt`) → its sequence.
+3. Matches a Terminal.Gui-compatible key token → its sequence.
 4. Key-like unknown tokens are errors instead of literals. This includes
-   malformed `wait:`/`click:` tokens, unknown `Ctrl`/`Alt` combinations,
-   unknown `Arrow*`/`Page*` names, and unsupported function keys.
+   malformed `wait:`/`click:` tokens, unknown modifier combinations,
+   unknown cursor/page names, and unsupported function keys.
 5. Otherwise → literal; type each rune with `--keystroke-delay` between runes.
 
 ### Separators & escaping
@@ -241,8 +240,10 @@ literal  = (* anything else: typed verbatim, rune by rune *) ;
 - List separator is `,`. Literal comma = `\,`; literal backslash = `\\`.
 - `click` uses `:` sub-separators — PR #1 chose `:` specifically to avoid
   the `,` list-separator conflict. Keep that.
-- Key names are **case-sensitive**: `Ctrl+C` and `Ctrl-C` are valid;
-  `Ctrl+c` is invalid.
+- Key tokens are compatible with Terminal.Gui's `Key.ToString()` /
+  `Key.TryParse()` persisted format. `+` is the canonical separator, and
+  Terminal.Gui-compatible alternate separators/orderings such as `Ctrl-C` and
+  `A-Ctrl` are accepted. Modifier and key names are case-insensitive.
 - Named keys and clicks are followed by one `--keystroke-delay`.
 - Default `--keystrokes` is `wait:3000,Ctrl+C`. Many TUIs ignore `Ctrl+C`;
   document that the default commonly relies on `--max-duration` teardown
@@ -250,27 +251,33 @@ literal  = (* anything else: typed verbatim, rune by rune *) ;
   exit. (Changing the default value itself is an open decision — surface,
   don't silently change.)
 
-### Named-Key table (complete & normative — constitution R6)
+### Key tokens (Terminal.Gui-compatible — constitution R6)
 
-Seeded from the proven prototype `keys.ts`; **F11/F12 and `Alt+<char>`
-were missing there and are added here** — every row needs a unit test.
+Seeded from Terminal.Gui `Key.ToString()` / `Key.TryParse()` and the proven
+prototype `keys.ts`; **F11/F12 and `Alt+<char>` were missing there and are
+added here** — every row needs a unit test.
 
 | Key | Sequence | Key | Sequence |
 |-----|----------|-----|----------|
 | `Enter` / `Return` | `\r` | `Home` | `\x1b[H` |
 | `Tab` | `\t` | `End` | `\x1b[F` |
-| `Escape` | `\x1b` | `PageUp` | `\x1b[5~` |
+| `Esc` / `Escape` | `\x1b` | `PageUp` | `\x1b[5~` |
 | `Backspace` | `\x7f` | `PageDown` | `\x1b[6~` |
 | `Delete` | `\x1b[3~` | `F1` | `\x1bOP` |
-| `ArrowUp` | `\x1b[A` | `F2` | `\x1bOQ` |
-| `ArrowDown` | `\x1b[B` | `F3` | `\x1bOR` |
-| `ArrowRight` | `\x1b[C` | `F4` | `\x1bOS` |
-| `ArrowLeft` | `\x1b[D` | `F5` | `\x1b[15~` |
+| `CursorUp` / `ArrowUp` | `\x1b[A` | `F2` | `\x1bOQ` |
+| `CursorDown` / `ArrowDown` | `\x1b[B` | `F3` | `\x1bOR` |
+| `CursorRight` / `ArrowRight` | `\x1b[C` | `F4` | `\x1bOS` |
+| `CursorLeft` / `ArrowLeft` | `\x1b[D` | `F5` | `\x1b[15~` |
 | `F6` | `\x1b[17~` | `F7` | `\x1b[18~` |
 | `F8` | `\x1b[19~` | `F9` | `\x1b[20~` |
 | `F10` | `\x1b[21~` | `F11` | `\x1b[23~` |
-| `F12` | `\x1b[24~` | `Ctrl+A`…`Ctrl+Z` / `Ctrl-A`…`Ctrl-Z` | `\x01`…`\x1a` |
-| `Alt+<char>` / `Alt-<char>` | `\x1b` + `<char>` | | |
+| `F12` | `\x1b[24~` | `Ctrl+A`…`Ctrl+Z` / `Ctrl-A`…`Ctrl-Z` / `A-Ctrl`…`Z-Ctrl` | `\x01`…`\x1a` |
+| `Alt+<char>` / `Alt-<char>` | `\x1b` + `<char>` | `Shift+Tab` | `\x1b[Z` |
+
+Modified cursor/navigation/function keys use standard xterm modifier sequences
+where available, e.g. `Ctrl+Alt+Shift+CursorUp` → `\x1b[1;8A` and
+`Ctrl+Alt+Shift+Delete` → `\x1b[3;8~`. Modified Enter/Tab/Esc fall back to
+CSI-u sequences when there is no legacy escape sequence.
 
 Mouse: `click:col:row` → SGR press+release, 1-based:
 `\x1b[<0;col;rowM` immediately followed by `\x1b[<0;col;rowm`.

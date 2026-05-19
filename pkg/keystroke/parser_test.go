@@ -67,12 +67,12 @@ func TestParseUnknownKey(t *testing.T) {
 	tests := []string{
 		"Ctrl+Foo",
 		"Ctrl-Foo",
-		"Ctrl+c",
-		"Alt+",
+		"Shift+Foo",
 		"Alt+Foo",
 		"Alt-Foo",
 		"ArrowDiagonal",
-		"F13",
+		"F21",
+		"PrintScreen",
 	}
 
 	for _, tt := range tests {
@@ -84,6 +84,27 @@ func TestParseUnknownKey(t *testing.T) {
 				t.Fatalf("Parse(%q) err = nil, want error", tt)
 			}
 		})
+	}
+}
+
+func TestParseTerminalGUIKeyStrings(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("ctrl+alt+shift+cursorup,Ctrl-c,A-Ctrl,Shift+Tab,D4")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := []Action{
+		{Kind: Write, Sequence: "\x1b[1;8A"},
+		{Kind: Write, Sequence: "\x03"},
+		{Kind: Write, Sequence: "\x01"},
+		{Kind: Write, Sequence: "\x1b[Z"},
+		{Kind: Write, Sequence: "4"},
+	}
+
+	if !reflect.DeepEqual(actions, want) {
+		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
 }
 
