@@ -120,6 +120,13 @@ func newRecordCommand(options cliOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   record.CommandName,
 		Short: "Record a terminal app",
+		Long: `Record a terminal app.
+
+Keystroke tokens are comma-separated. Use wait:<ms> for delays, click:col:row
+for SGR mouse clicks, literal text for typed text, and Terminal.Gui Key strings
+for named keys. Key strings use the same format as Terminal.Gui Key.ToString()
+and Key.TryParse(), such as Ctrl+C, Ctrl-C, A-Ctrl, Shift+Tab,
+Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return usageError(err)
@@ -139,7 +146,7 @@ func newRecordCommand(options cliOptions) *cobra.Command {
 	cmd.Flags().StringSliceVar(&flags.args, "args", nil, "Arguments to pass to the binary")
 	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output GIF path")
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
-	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated keystroke script")
+	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, literal text, or Terminal.Gui Key strings")
 	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
 	cmd.Flags().IntVar(&flags.config.Size.Cols, "cols", flags.config.Size.Cols, "Terminal columns")
 	cmd.Flags().IntVar(&flags.config.Size.Rows, "rows", flags.config.Size.Rows, "Terminal rows")

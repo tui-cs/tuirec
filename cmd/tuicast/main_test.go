@@ -192,6 +192,11 @@ func TestRecordCommandExitCodes(t *testing.T) {
 			want: exitUsage,
 		},
 		{
+			name: "usage unknown key",
+			args: []string{"record", "--binary", "demo-app", "--keystrokes", "Ctrl-Foo"},
+			want: exitUsage,
+		},
+		{
 			name: "missing prerequisite",
 			args: []string{"record", "--binary", "demo-app"},
 			look: func(string) (string, error) {
@@ -270,6 +275,8 @@ func TestRecordHelpSnapshot(t *testing.T) {
 	help := stdout.String()
 	for _, want := range []string{
 		"Record a terminal app",
+		"Terminal.Gui Key strings",
+		"Ctrl+Alt+Shift+CursorUp",
 		"--binary string",
 		"--keystrokes string",
 		"--cast-output string",

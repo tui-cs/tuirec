@@ -95,6 +95,12 @@ tuicast record \
   --output demo.gif
 ```
 
+Key tokens use Terminal.Gui's persisted `Key.ToString()` / `Key.TryParse()`
+format. `Ctrl+C`, `Ctrl-C`, `A-Ctrl`, `Shift+Tab`, `Ctrl+Alt+Shift+CursorUp`,
+`Esc`, `Enter`, `Delete`, and `F1` all work. Older aliases such as `ArrowUp`
+and `Escape` are also accepted. Unknown key-like tokens such as `Ctrl-Foo`
+fail fast instead of being typed as literal text.
+
 ## Status
 
 🚧 **Pre-alpha** — rewriting from Node.js prototype to Go. See [spec.md](spec.md) for the v1 plan.

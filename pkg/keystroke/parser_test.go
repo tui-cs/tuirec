@@ -45,29 +45,83 @@ func TestParseDanglingEscape(t *testing.T) {
 	}
 }
 
-func TestParseWaitLikeLiteral(t *testing.T) {
+func TestParseInvalidWait(t *testing.T) {
 	t.Parallel()
 
-	actions, err := Parse("wait:abc")
+	if _, err := Parse("wait:abc"); err == nil {
+		t.Fatal("Parse(wait:abc) err = nil, want error")
+	}
+}
+
+func TestParseInvalidClick(t *testing.T) {
+	t.Parallel()
+
+	if _, err := Parse("click:left:top"); err == nil {
+		t.Fatal("Parse(click:left:top) err = nil, want error")
+	}
+}
+
+func TestParseUnknownKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"Ctrl+Foo",
+		"Ctrl-Foo",
+		"Shift+Foo",
+		"Alt+Foo",
+		"Alt-Foo",
+		"ArrowDiagonal",
+		"F21",
+		"PrintScreen",
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := Parse(tt); err == nil {
+				t.Fatalf("Parse(%q) err = nil, want error", tt)
+			}
+		})
+	}
+}
+
+func TestParseTerminalGUIKeyStrings(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("ctrl+alt+shift+cursorup,Ctrl-c,A-Ctrl,Shift+Tab,D4")
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
 
-	want := []Action{{Kind: Literal, Sequence: "wait:abc"}}
+	want := []Action{
+		{Kind: Write, Sequence: "\x1b[1;8A"},
+		{Kind: Write, Sequence: "\x03"},
+		{Kind: Write, Sequence: "\x01"},
+		{Kind: Write, Sequence: "\x1b[Z"},
+		{Kind: Write, Sequence: "4"},
+	}
+
 	if !reflect.DeepEqual(actions, want) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
 }
 
-func TestParseClickLikeLiteral(t *testing.T) {
+func TestParseLiteralThatStartsWithKeyPrefix(t *testing.T) {
 	t.Parallel()
 
-	actions, err := Parse("click:left:top")
+	actions, err := Parse("Page title,Arrow key,Ctrl-C to stop,Alt-text")
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
 
-	want := []Action{{Kind: Literal, Sequence: "click:left:top"}}
+	want := []Action{
+		{Kind: Literal, Sequence: "Page title"},
+		{Kind: Literal, Sequence: "Arrow key"},
+		{Kind: Literal, Sequence: "Ctrl-C to stop"},
+		{Kind: Literal, Sequence: "Alt-text"},
+	}
 	if !reflect.DeepEqual(actions, want) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
