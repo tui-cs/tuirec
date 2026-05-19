@@ -24,7 +24,7 @@ Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/re
 
 ## Build and Run Locally on Windows
 
-The CLI shell, cross-platform PTY, asciinema recorder, keystroke player, GIF renderer, and recording pipeline packages are in place. The user-facing `record` command wiring is the next phase, so `tuicast record` still reports that it is planned.
+The CLI shell, cross-platform PTY, asciinema recorder, keystroke player, GIF renderer, recording pipeline, and `record` command are in place.
 
 From the repo root:
 
@@ -72,9 +72,21 @@ go run .\examples\record-pipeline -output .\pipeline-demo.gif -cast-output .\pip
 Invoke-Item .\pipeline-demo.gif
 ```
 
+To run the real CLI against the bundled test TUI and open the result:
+
+```powershell
+go run .\cmd\tuicast record `
+  --binary go `
+  --args run,.\internal\testapp `
+  --keystrokes "wait:1000,ArrowRight,ArrowDown,Hi,wait:500,Ctrl+Q" `
+  --output .\cli-demo.gif `
+  --cast-output .\cli-demo.cast
+Invoke-Item .\cli-demo.gif
+```
+
 ## Usage
 
-Planned v1 CLI usage:
+v1 CLI usage:
 
 ```sh
 tuicast record \

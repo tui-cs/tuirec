@@ -1,11 +1,30 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/gui-cs/TUIcast/pkg/gif"
+	"github.com/gui-cs/TUIcast/pkg/keystroke"
+	"github.com/gui-cs/TUIcast/pkg/pty"
 	"github.com/gui-cs/TUIcast/pkg/record"
 	"github.com/spf13/cobra"
+)
+
+const (
+	exitSuccess = iota
+	exitGeneric
+	exitUsage
+	exitPrerequisite
+	exitMaxDuration
+	exitValidation
 )
 
 var (
@@ -14,25 +33,267 @@ var (
 	date    = "unknown"
 )
 
-func main() {
-	root := &cobra.Command{
-		Use:   "tuicast",
-		Short: "Record terminal apps and produce animated GIFs",
-		Long:  "TUIcast records terminal application sessions and renders them as animated GIFs.",
-	}
+type cliError struct {
+	code int
+	err  error
+}
 
-	root.SetVersionTemplate("tuicast {{.Version}}\n")
-	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
-	root.AddCommand(&cobra.Command{
-		Use:   record.CommandName,
-		Short: "Record a terminal app (planned)",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("%s command is not implemented yet", record.CommandName)
-		},
-	})
+type cliOptions struct {
+	stdout io.Writer
+	stderr io.Writer
+	run    func(context.Context, record.Config) (record.Result, error)
+	look   func(string) (string, error)
+}
+
+type recordFlags struct {
+	config           record.Config
+	args             []string
+	keystrokeDelayMS int
+	maxDurationSec   int
+	drainMS          int
+}
+
+func main() {
+	os.Exit(execute(os.Args[1:], cliOptions{
+		stdout: os.Stdout,
+		stderr: os.Stderr,
+		run:    record.Run,
+		look:   exec.LookPath,
+	}))
+}
+
+func execute(args []string, options cliOptions) int {
+	options = normalizeOptions(options)
+	root := newRootCommand(options)
+	root.SetArgs(args)
 
 	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		err = classifyCommandError(err)
+		fmt.Fprintln(options.stderr, err)
+
+		return exitCode(err)
 	}
+
+	return exitSuccess
+}
+
+func normalizeOptions(options cliOptions) cliOptions {
+	if options.stdout == nil {
+		options.stdout = io.Discard
+	}
+	if options.stderr == nil {
+		options.stderr = io.Discard
+	}
+	if options.run == nil {
+		options.run = record.Run
+	}
+	if options.look == nil {
+		options.look = exec.LookPath
+	}
+
+	return options
+}
+
+func newRootCommand(options cliOptions) *cobra.Command {
+	root := &cobra.Command{
+		Use:           "tuicast",
+		Short:         "Record terminal apps and produce animated GIFs",
+		Long:          "TUIcast records terminal application sessions and renders them as animated GIFs.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+
+	root.SetOut(options.stdout)
+	root.SetErr(options.stderr)
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return usageError(err)
+	})
+	root.SetVersionTemplate("tuicast {{.Version}}\n")
+	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
+	root.AddCommand(newRecordCommand(options))
+
+	return root
+}
+
+func newRecordCommand(options cliOptions) *cobra.Command {
+	flags := defaultRecordFlags()
+	cmd := &cobra.Command{
+		Use:   record.CommandName,
+		Short: "Record a terminal app",
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.NoArgs(cmd, args); err != nil {
+				return usageError(err)
+			}
+
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runRecord(cmd.Context(), options, flags)
+		},
+	}
+	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return usageError(err)
+	})
+
+	cmd.Flags().StringVar(&flags.config.Binary, "binary", "", "Path to executable to record")
+	cmd.Flags().StringSliceVar(&flags.args, "args", nil, "Arguments to pass to the binary")
+	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output GIF path")
+	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
+	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated keystroke script")
+	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
+	cmd.Flags().IntVar(&flags.config.Size.Cols, "cols", flags.config.Size.Cols, "Terminal columns")
+	cmd.Flags().IntVar(&flags.config.Size.Rows, "rows", flags.config.Size.Rows, "Terminal rows")
+	cmd.Flags().StringVar(&flags.config.GIF.Theme, "theme", flags.config.GIF.Theme, "agg color theme")
+	cmd.Flags().StringVar(&flags.config.GIF.Font, "font", "", "Font family for agg; omit for agg default")
+	cmd.Flags().IntVar(&flags.config.GIF.FontSize, "font-size", flags.config.GIF.FontSize, "Font size in pixels")
+	cmd.Flags().Float64Var(&flags.config.GIF.LineHeight, "line-height", flags.config.GIF.LineHeight, "Line-height multiplier")
+	cmd.Flags().Float64Var(&flags.config.GIF.Speed, "speed", flags.config.GIF.Speed, "GIF playback speed multiplier")
+	cmd.Flags().IntVar(&flags.maxDurationSec, "max-duration", flags.maxDurationSec, "Max recording duration in seconds")
+	cmd.Flags().StringVar(&flags.config.Title, "title", "", "Title embedded in the cast file")
+	cmd.Flags().StringVar(&flags.config.GIF.AggPath, "agg-path", flags.config.GIF.AggPath, "Path to agg binary")
+	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
+
+	return cmd
+}
+
+func defaultRecordFlags() *recordFlags {
+	return &recordFlags{
+		config: record.Config{
+			Output:     "recording.gif",
+			Keystrokes: "wait:3000,Ctrl+C",
+			Size:       pty.Size{Cols: 120, Rows: 30},
+			GIF: gif.Config{
+				AggPath:    defaultAggPath(),
+				Theme:      "monokai",
+				Speed:      1.0,
+				FontSize:   14,
+				LineHeight: 1.0,
+			},
+		},
+		keystrokeDelayMS: 200,
+		maxDurationSec:   60,
+		drainMS:          500,
+	}
+}
+
+func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) error {
+	if flags.config.Binary == "" {
+		return usageError(fmt.Errorf("--binary is required"))
+	}
+
+	if _, err := keystroke.Parse(flags.config.Keystrokes); err != nil {
+		return usageError(err)
+	}
+
+	binary, err := options.look(flags.config.Binary)
+	if err != nil {
+		return prerequisiteError(fmt.Errorf("find target binary %q: %w", flags.config.Binary, err))
+	}
+
+	config := flags.config
+	config.Binary = binary
+	config.Args = flags.args
+	config.KeystrokeDelay = time.Duration(flags.keystrokeDelayMS) * time.Millisecond
+	config.MaxDuration = time.Duration(flags.maxDurationSec) * time.Second
+	config.DrainDuration = time.Duration(flags.drainMS) * time.Millisecond
+
+	if config.Output != "" {
+		aggPath, err := options.look(config.GIF.AggPath)
+		if err != nil {
+			return prerequisiteError(fmt.Errorf("find agg binary %q: %w", config.GIF.AggPath, err))
+		}
+		config.GIF.AggPath = aggPath
+	}
+
+	cleanupCast := false
+	if config.CastOutput == "" {
+		castFile, err := os.CreateTemp("", "tuicast-*.cast")
+		if err != nil {
+			return err
+		}
+		if err := castFile.Close(); err != nil {
+			return err
+		}
+		config.CastOutput = castFile.Name()
+		cleanupCast = true
+	}
+	if cleanupCast {
+		defer os.Remove(config.CastOutput)
+	}
+
+	result, err := options.run(ctx, config)
+	if err != nil {
+		return classifyRunError(err)
+	}
+
+	if result.GIFPath != "" {
+		fmt.Fprintf(options.stdout, "Wrote %s\n", result.GIFPath)
+	}
+	if !cleanupCast && result.CastPath != "" {
+		fmt.Fprintf(options.stdout, "Wrote %s\n", result.CastPath)
+	}
+
+	return nil
+}
+
+func defaultAggPath() string {
+	for _, candidate := range []string{
+		filepath.Join("tools", "agg.exe"),
+		filepath.Join("tools", "agg"),
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	return "agg"
+}
+
+func usageError(err error) error {
+	return cliError{code: exitUsage, err: err}
+}
+
+func prerequisiteError(err error) error {
+	return cliError{code: exitPrerequisite, err: err}
+}
+
+func classifyRunError(err error) error {
+	switch {
+	case errors.Is(err, record.ErrMaxDuration):
+		return cliError{code: exitMaxDuration, err: err}
+	case errors.Is(err, gif.ErrValidation):
+		return cliError{code: exitValidation, err: err}
+	default:
+		return err
+	}
+}
+
+func classifyCommandError(err error) error {
+	var coded cliError
+	if errors.As(err, &coded) {
+		return err
+	}
+
+	if strings.HasPrefix(err.Error(), "unknown command ") {
+		return usageError(err)
+	}
+
+	return err
+}
+
+func exitCode(err error) int {
+	var coded cliError
+	if errors.As(err, &coded) {
+		return coded.code
+	}
+
+	return exitGeneric
+}
+
+func (e cliError) Error() string {
+	return e.err.Error()
+}
+
+func (e cliError) Unwrap() error {
+	return e.err
 }
