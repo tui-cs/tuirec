@@ -337,18 +337,18 @@ row and no Unix-only fallback.
 
 | Method | Command | Platform |
 |--------|---------|----------|
-| Homebrew | `brew install gui-cs/tap/tuicast` | macOS, Linux |
-| Scoop | `scoop bucket add gui-cs https://github.com/gui-cs/scoop-bucket && scoop install tuicast` | Windows |
 | Go install | `go install github.com/gui-cs/TUIcast/cmd/tuicast@latest` | Any (requires Go) |
 | Binary download | GitHub Releases page | Any |
+| Homebrew | Planned after tap repo + token setup | macOS, Linux |
+| Scoop | Planned after bucket repo + token setup | Windows |
 
 ### Release Process
 
 1. Tag a commit: `git tag v0.1.0 && git push --tags`
 2. GoReleaser (via `.github/workflows/release.yml`) builds for linux/darwin/windows × amd64/arm64
 3. Creates GitHub Release with tarballs, zips, and checksums
-4. Updates Homebrew tap formula (`gui-cs/homebrew-tap`)
-5. Updates Scoop manifest (`gui-cs/scoop-bucket`)
+4. Homebrew tap and Scoop bucket publishing are enabled after the target repos
+   and tokens exist.
 
 ### CI
 
@@ -359,9 +359,8 @@ row and no Unix-only fallback.
   Windows `x86_64-pc-windows-msvc.exe`) then runs
   `go test -tags integration ./...`. The Windows integration job exercises
   both ConPTY and the full cast→GIF path.
-- Recommended hardening: pin `golangci-lint-action` to a fixed version
-  instead of `latest` (a new lint release otherwise breaks CI out of band)
-  and commit a minimal `.golangci.yml` documenting the enabled linters.
+- `golangci-lint-action` is pinned to a fixed `golangci-lint` version and
+  `.golangci.yml` documents the enabled linters.
 - `.github/workflows/release.yml` — GoReleaser on `v*` tag push.
 
 ---

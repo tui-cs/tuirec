@@ -7,20 +7,14 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 ## Install
 
 ```sh
-# macOS / Linux
-brew install gui-cs/tap/tuicast
-
-# Windows
-scoop bucket add gui-cs https://github.com/gui-cs/scoop-bucket
-scoop install tuicast
-
 # Go (requires Go 1.22+)
 go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
 ```
 
 Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases).
+Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast does not vendor `agg`; install it on your PATH or pass `-agg-path` to the demo commands.
+**Prerequisite:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast does not vendor `agg`; install it on your PATH or pass `--agg-path` to the demo commands.
 
 ## Build and Run Locally on Windows
 
@@ -56,7 +50,7 @@ Invoke-WebRequest `
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `-agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
+On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 
