@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/gui-cs/TUIcast/examples/internal/demoagg"
 	"github.com/gui-cs/TUIcast/pkg/gif"
 	"github.com/gui-cs/TUIcast/pkg/pty"
 	"github.com/gui-cs/TUIcast/pkg/record"
@@ -16,7 +17,7 @@ import (
 func main() {
 	outputPath := flag.String("output", "pipeline-demo.gif", "GIF file to write")
 	castPath := flag.String("cast-output", "pipeline-demo.cast", "cast file to write")
-	aggPath := flag.String("agg-path", "agg", "path to agg binary")
+	aggPath := flag.String("agg-path", demoagg.DefaultPath(), "path to agg binary")
 	flag.Parse()
 
 	goPath, err := exec.LookPath("go")

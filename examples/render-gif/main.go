@@ -7,13 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/gui-cs/TUIcast/examples/internal/demoagg"
 	"github.com/gui-cs/TUIcast/pkg/gif"
 )
 
 func main() {
 	castPath := flag.String("cast", "pkg/gif/testdata/animated.cast", "asciinema cast file to render")
 	outputPath := flag.String("output", "demo.gif", "GIF file to write")
-	aggPath := flag.String("agg-path", "agg", "path to agg binary")
+	aggPath := flag.String("agg-path", demoagg.DefaultPath(), "path to agg binary")
 	flag.Parse()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

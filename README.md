@@ -56,19 +56,19 @@ Invoke-WebRequest `
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `-agg-path`.
+On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `-agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 
 ```powershell
-go run .\examples\render-gif -agg-path .\tools\agg.exe -output .\demo.gif
+go run .\examples\render-gif -output .\demo.gif
 Invoke-Item .\demo.gif
 ```
 
 To exercise the full package pipeline against the bundled test TUI and open the result:
 
 ```powershell
-go run .\examples\record-pipeline -agg-path .\tools\agg.exe -output .\pipeline-demo.gif -cast-output .\pipeline-demo.cast
+go run .\examples\record-pipeline -output .\pipeline-demo.gif -cast-output .\pipeline-demo.cast
 Invoke-Item .\pipeline-demo.gif
 ```
 
