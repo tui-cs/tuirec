@@ -22,7 +22,27 @@ Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/re
 
 **Prerequisite:** [agg](https://github.com/asciinema/agg) must be on your PATH (for GIF rendering).
 
+## Build and Run Locally on Windows
+
+Phase 1 currently includes the CLI shell and cross-platform PTY package. The `record` command is planned but not implemented yet.
+
+From the repo root:
+
+```powershell
+go build -o .\tuicast.exe .\cmd\tuicast
+.\tuicast.exe --version
+.\tuicast.exe --help
+```
+
+Run the Windows ConPTY tests:
+
+```powershell
+go test .\...
+```
+
 ## Usage
+
+Planned v1 usage:
 
 ```sh
 tuicast record \
