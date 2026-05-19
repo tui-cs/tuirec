@@ -297,20 +297,24 @@ likely to hang or race; implement it as specified:
 ## Implementation Phases
 
 Every exit gate is a **runnable command**, not prose — that is what makes
-the build self-verifying and autonomous. The Windows ConPTY spike already
-ran (PR #3) and resolved **go**, so Phase 1 is cross-platform: there is no
-separate spike row and no Unix-only fallback.
+the build self-verifying and autonomous. Every phase that adds user-visible
+behavior must also include a **demo gate**: a command a user can run locally
+to see the current capability, preferably producing an artifact they can open
+(`.cast`, `.gif`, or CLI output). If a phase is infrastructure-only, mark the
+demo gate as **N/A** and say why. The Windows ConPTY spike already ran (PR #3)
+and resolved **go**, so Phase 1 is cross-platform: there is no separate spike
+row and no Unix-only fallback.
 
-| Phase | Scope | Verifiable Exit Gate |
-|-------|-------|----------------------|
-| 0 | Scaffold: `go.mod` (canonical path), package skeletons, `internal/testapp`, CI wired with pinned `agg` | `go build ./...`, `go vet ./...`, `golangci-lint run ./...` green on the CI matrix |
-| 1 | **Cross-platform** PTY session: Unix `creack/pty` + Windows `UserExistsError/conpty` | `go test ./pkg/pty` (untagged) green on ubuntu + macOS + windows: spawn `internal/testapp`, send `Ctrl+Q`, assert clean exit; platform read-after-exit (`EIO` on Unix, ConPTY close on Windows) normalized to EOF |
-| 2 | asciinema v2 recorder (streaming, UTF-8-safe, scripted clock) | `go test ./pkg/recorder`: golden `.cast` byte-match + split-rune test |
-| 3 | Keystroke player + complete key map | `go test ./pkg/keystroke`: a row for **every** Named-Key entry (R6) + grammar/escaping tests |
-| 4 | GIF renderer | `go test -tags integration ./pkg/gif`: render fixture cast, decode GIF, assert ≥ 2 frames + pixel variance + golden frame |
-| 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race |
-| 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuicast`: flag parsing + exit-code table; `--help` snapshot |
-| 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: `internal/testapp` → validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration is a tracked follow-up (needs agg-on-Windows in CI), not a v1 blocker |
+| Phase | Scope | Verifiable Test Gate | User-runnable Demo Gate |
+|-------|-------|----------------------|-------------------------|
+| 0 | Scaffold: `go.mod` (canonical path), package skeletons, `internal/testapp`, CI wired with pinned `agg` | `go build ./...`, `go vet ./...`, `golangci-lint run ./...` green on the CI matrix | N/A — scaffold/CI only. README must still show local build/run commands. |
+| 1 | **Cross-platform** PTY session: Unix `creack/pty` + Windows `UserExistsError/conpty` | `go test ./pkg/pty` (untagged) green on ubuntu + macOS + windows: spawn `internal/testapp`, send `Ctrl+Q`, assert clean exit; platform read-after-exit (`EIO` on Unix, ConPTY close on Windows) normalized to EOF | `go run ./internal/testapp` lets a user see the deterministic fixture and quit with `Ctrl+Q`. |
+| 2 | asciinema v2 recorder (streaming, UTF-8-safe, scripted clock) | `go test ./pkg/recorder`: golden `.cast` byte-match + split-rune test | Add/keep a demo command that writes `demo.cast` from fixture output, then document how to inspect/play it if `asciinema` is installed. |
+| 3 | Keystroke player + complete key map | `go test ./pkg/keystroke`: a row for **every** Named-Key entry (R6) + grammar/escaping tests | N/A acceptable if folded into the next recording demo; otherwise provide a small script-preview demo that shows parsed actions for a sample `--keystrokes` value. |
+| 4 | GIF renderer | `go test -tags integration ./pkg/gif`: render fixture cast, decode GIF, assert >= 2 frames + pixel variance + golden frame | `go run ./examples/render-gif -output ./demo.gif`, then open `demo.gif`. Requires `agg` on PATH. |
+| 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race | `go run ./examples/record-pipeline -output ./pipeline-demo.gif -cast-output ./pipeline-demo.cast`, then open `pipeline-demo.gif`. Requires `agg` on PATH. |
+| 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuicast`: flag parsing + exit-code table; `--help` snapshot | `go run ./cmd/tuicast record --binary <demo app> --keystrokes "wait:1000,Ctrl+Q" --output ./cli-demo.gif`, then open `cli-demo.gif`. |
+| 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: `internal/testapp` -> validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration is a tracked follow-up (needs agg-on-Windows in CI), not a v1 blocker | Same CLI command as Phase 6, but documented as the canonical README quickstart using `internal/testapp` or an installed sample app. |
 
 ---
 

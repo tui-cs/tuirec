@@ -53,6 +53,13 @@ go run .\examples\render-gif -output .\demo.gif
 Invoke-Item .\demo.gif
 ```
 
+To exercise the full package pipeline against the bundled test TUI and open the result:
+
+```powershell
+go run .\examples\record-pipeline -output .\pipeline-demo.gif -cast-output .\pipeline-demo.cast
+Invoke-Item .\pipeline-demo.gif
+```
+
 ## Usage
 
 Planned v1 CLI usage:
