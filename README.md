@@ -24,7 +24,7 @@ Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/re
 
 ## Build and Run Locally on Windows
 
-Phase 1 currently includes the CLI shell and cross-platform PTY package. The `record` command is planned but not implemented yet.
+The CLI shell, cross-platform PTY, asciinema recorder, keystroke player, GIF renderer, and recording pipeline packages are in place. The user-facing `record` command wiring is the next phase, so `tuicast record` still reports that it is planned.
 
 From the repo root:
 
@@ -40,9 +40,15 @@ Run the Windows ConPTY tests:
 go test .\...
 ```
 
+If `agg` is installed on your PATH, run the GIF renderer integration test:
+
+```powershell
+go test -tags integration .\pkg\gif
+```
+
 ## Usage
 
-Planned v1 usage:
+Planned v1 CLI usage:
 
 ```sh
 tuicast record \

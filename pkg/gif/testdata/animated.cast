@@ -1,0 +1,3 @@
+{"version":2,"width":20,"height":5,"timestamp":1710000000,"title":"animated","env":{"TERM":"xterm-256color"}}
+[0,"o","\u001b[2J\u001b[Hframe 1\n#\n"]
+[0.5,"o","\u001b[2J\u001b[Hframe 2\n #\n"]
