@@ -46,6 +46,13 @@ If `agg` is installed on your PATH, run the GIF renderer integration test:
 go test -tags integration .\pkg\gif
 ```
 
+To create and open a visible demo GIF from the bundled cast fixture:
+
+```powershell
+go run .\examples\render-gif -output .\demo.gif
+Invoke-Item .\demo.gif
+```
+
 ## Usage
 
 Planned v1 CLI usage:
