@@ -40,10 +40,10 @@ Run the Windows ConPTY tests:
 go test .\...
 ```
 
-If `agg` is installed on your PATH, run the GIF renderer integration test:
+If `agg` is installed on your PATH, run the GIF renderer and CLI end-to-end integration tests:
 
 ```powershell
-go test -tags integration .\pkg\gif
+go test -tags integration .\...
 ```
 
 To install the pinned `agg` binary locally for demos on Windows:
