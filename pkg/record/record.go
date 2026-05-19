@@ -243,15 +243,21 @@ func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.A
 }
 
 func waitSession(ctx context.Context, session pty.Session, done chan<- error) {
-	_, err := session.Wait(ctx)
-	if errors.Is(err, context.DeadlineExceeded) {
+	status, err := session.Wait(ctx)
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		done <- ErrMaxDuration
 
 		return
 	}
 
-	if errors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 		done <- ctx.Err()
+
+		return
+	}
+
+	if err != nil && status.Code != 0 {
+		done <- nil
 
 		return
 	}

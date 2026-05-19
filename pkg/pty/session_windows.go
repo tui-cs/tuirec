@@ -78,6 +78,10 @@ func (s *windowsSession) Wait(ctx context.Context) (ExitStatus, error) {
 	code, err := s.pty.Wait(ctx)
 	status := ExitStatus{Code: int(code)}
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return status, ctxErr
+		}
+
 		return status, fmt.Errorf("wait process: %w", err)
 	}
 

@@ -57,6 +57,40 @@ func TestRunRecordsKeystrokesAndRenders(t *testing.T) {
 	}
 }
 
+func TestRunRendersAfterNonZeroChildExit(t *testing.T) {
+	originalStartPTY := startPTY
+	fakeSession := newFakeSession()
+	fakeSession.waitStatus = pty.ExitStatus{Code: 130}
+	fakeSession.waitErr = errors.New("wait process: exit status 130")
+	startPTY = func(string, []string, pty.Size, pty.Options) (pty.Session, error) {
+		return fakeSession, nil
+	}
+	defer func() {
+		startPTY = originalStartPTY
+	}()
+
+	renderer := &fakeRenderer{}
+	castPath := filepath.Join(t.TempDir(), "recording.cast")
+
+	_, err := Run(context.Background(), Config{
+		Binary:         "fake-app",
+		CastOutput:     castPath,
+		Output:         filepath.Join(t.TempDir(), "recording.gif"),
+		Keystrokes:     "Ctrl+C",
+		KeystrokeDelay: time.Millisecond,
+		DrainDuration:  time.Millisecond,
+		MaxDuration:    time.Second,
+		Renderer:       renderer,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if renderer.castPath != castPath {
+		t.Fatalf("renderer castPath = %q, want %q", renderer.castPath, castPath)
+	}
+}
+
 func TestRunRequiresBinaryAndCastOutput(t *testing.T) {
 	t.Parallel()
 
@@ -131,6 +165,25 @@ func TestWaitForStopMapsPlayerDeadlineToMaxDuration(t *testing.T) {
 	}
 }
 
+func TestWaitSessionPreservesDeadlineWithNonZeroStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 0)
+	defer cancel()
+
+	done := make(chan error, 1)
+	fakeSession := newFakeSession()
+	fakeSession.waitStatus = pty.ExitStatus{Code: 259}
+	fakeSession.waitErr = errors.New("wait canceled")
+
+	waitSession(ctx, fakeSession, done)
+
+	err := <-done
+	if !errors.Is(err, ErrMaxDuration) {
+		t.Fatalf("waitSession err = %v, want ErrMaxDuration", err)
+	}
+}
+
 type fakeRenderer struct {
 	castPath string
 }
@@ -146,10 +199,12 @@ func (r *fakeRenderer) Render(_ context.Context, castPath, outputPath string, _ 
 }
 
 type fakeSession struct {
-	mu     sync.Mutex
-	closed chan struct{}
-	once   sync.Once
-	input  []byte
+	mu         sync.Mutex
+	closed     chan struct{}
+	once       sync.Once
+	input      []byte
+	waitStatus pty.ExitStatus
+	waitErr    error
 }
 
 func newFakeSession() *fakeSession {
@@ -194,6 +249,10 @@ func (s *fakeSession) Resize(pty.Size) error {
 }
 
 func (s *fakeSession) Wait(ctx context.Context) (pty.ExitStatus, error) {
+	if s.waitErr != nil {
+		return s.waitStatus, s.waitErr
+	}
+
 	select {
 	case <-s.closed:
 		return pty.ExitStatus{}, nil
