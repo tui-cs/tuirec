@@ -1,6 +1,6 @@
 # TUIcast Constitution
 
-**Version**: 1.0 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
+**Version**: 1.1 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
 
 This constitution governs all contributions to `gui-cs/TUIcast`. It is the highest-authority document in the repository — PRs that violate it are rejected with a link to the specific rule.
 
@@ -85,12 +85,14 @@ Every PR must comply. Reviewers (human or agent) must reject violations and cite
 
 The five core packages (`pty`, `recorder`, `keystroke`, `gif`, `record`) have strict import rules:
 
-- `pkg/pty` imports only stdlib.
+- `pkg/pty` imports only stdlib + the platform PTY driver libraries (`github.com/creack/pty` on Unix, the chosen ConPTY library on Windows). No other external dependencies.
 - `pkg/recorder` imports only stdlib.
 - `pkg/keystroke` imports only stdlib.
 - `pkg/gif` imports only stdlib + `os/exec`.
 - `pkg/record` is the sole orchestrator; it may import all `pkg/*` packages.
 - `cmd/tuicast` imports `pkg/record` and `cobra`. Nothing else from `pkg/`.
+
+A package may take an external dependency **only** when (a) this rule explicitly grants it and (b) the dependency is listed in `spec.md`'s dependency table with a one-line justification. The bar stays high — prefer the standard library; the PTY/ConPTY drivers and the CLI framework are the only anticipated exceptions. R1's intent is to keep leaf packages thin and decoupled, **not** to forbid the irreducible platform primitives that `pkg/pty` is built on. Reimplementing `forkpty`/ConPTY by hand to satisfy a literal "stdlib only" reading is explicitly *not* required and not desired.
 
 No circular imports. No "utils" package. Shared types live in `pkg/record` (the orchestrator) or are duplicated (prefer duplication over coupling).
 

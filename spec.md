@@ -17,6 +17,10 @@ Rewrite TUIcast as a **cross-platform Go CLI** that records any terminal app and
 | Platforms | Windows (ConPTY), macOS, Linux | Cross-platform from day one |
 | GIF renderer | agg (external binary) | Proven in prototype; MIT; static binary |
 | Recording format | asciinema v2 cast (native) | Simple JSON-lines; no AGPL dependency |
+| PTY driver deps | `pkg/pty` may import `creack/pty` (Unix) + a ConPTY lib (Windows) | Resolves the constitution R1 conflict; amended to R1 v1.1. Hand-rolling `forkpty`/ConPTY is out of scope |
+| Module path | `github.com/gui-cs/TUIcast` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
+| agg distribution | Require as a prerequisite; **pin agg `v1.5.0`** | Resolves open decision "bundle vs require". CI installs it per-OS (see CI section). Bundling deferred post-v1 |
+| Recording clock | Support a deterministic (scripted) clock in addition to wall-clock | Wall-clock timing makes GIFs non-reproducible and CI flaky; scripted timing enables golden-GIF regression |
 
 ---
 
@@ -31,30 +35,69 @@ Rewrite TUIcast as a **cross-platform Go CLI** that records any terminal app and
    - Support Windows (ConPTY), macOS, and Linux
 
 2. **FR-2: Inject a scripted keystroke sequence**
-   - Named keys: Enter, Tab, Escape, Arrow keys, F1–F12, Ctrl+letter, Alt+letter
-   - Mouse clicks: `click:col:row`
-   - Wait/delay: `wait:<ms>`
-   - Literal text strings
+   - Tokens: named keys, mouse clicks, waits, literal text
    - Configurable inter-keystroke delay (default 200ms)
+   - The grammar, precedence rules, escaping, and the complete named-key
+     table are normative and specified in
+     [§ Keystroke Script Grammar](#keystroke-script-grammar). Implement to
+     that section exactly — it is the single biggest source of "plausible
+     but wrong" behavior.
 
 3. **FR-3: Record the PTY session as an asciinema v2 cast file**
-   - Native implementation (JSON header + event lines)
-   - Capture all PTY output with accurate timestamps
-   - Output `.cast` file
+   - Native implementation. Line 1 is a JSON header object:
+     `{"version":2,"width":<cols>,"height":<rows>,"timestamp":<unix-secs>,"title":<title>,"env":{"TERM":"xterm-256color"}}`.
+     Subsequent lines are `[<elapsed-seconds-float>, "o", <utf8-string>]`.
+   - Elapsed time is relative to recording start, in seconds, as a float.
+   - **UTF-8 boundary safety:** the PTY is read as raw bytes. A multi-byte
+     rune split across two reads must be buffered and not flushed mid-rune,
+     or the JSON `data` string corrupts. Unit-test with a split sequence.
+   - **Streaming, not buffered:** write events as they arrive; do not retain
+     all events in memory (the prototype's `recorder.ts` does — do not port
+     that). Recordings may be long.
+   - **Clock mode** (see Decisions): `--clock wall` (default) uses real
+     elapsed time; `--clock scripted` advances the cast clock only by
+     keystroke/`wait:` delays, making output byte-reproducible.
+   - Output a `.cast` file when `--cast-output` is set.
+   - **Exit criterion is a golden-file test**, not "playable by
+     `asciinema play`" (that needs asciinema installed and is
+     non-deterministic). With `--clock scripted` + the test fixture, the
+     `.cast` is byte-stable; store it in `testdata/` and diff.
 
 4. **FR-4: Render the cast file to an animated GIF**
-   - Invoke `agg` binary (user must have it installed or we bundle it)
-   - Configurable: theme, speed, font, fontSize, line-height
-   - Validate output (GIF magic bytes, minimum size)
+   - Invoke pinned `agg v1.5.0` (prerequisite; see Decisions + CI).
+   - Flag mapping (apply only the flags whose CLI value is set):
+
+     | CLI flag | agg flag | Notes |
+     |----------|----------|-------|
+     | `--theme` | `--theme <name>` | default `monokai` |
+     | `--speed` | `--speed <f>` | default `1.0` |
+     | `--font-size` | `--font-size <n>` | default `14` |
+     | `--line-height` | `--line-height <f>` | **default `1.0`**, not agg's own `1.4`. PR #1: `1.4` adds a visible blank ~40% strip between rows in TUI recordings |
+     | `--font` | `--font-family <name>` | **Omit entirely when unset.** PR #1: passing `--font-family` on a host without that font installed makes agg fail |
+
+   - **Validation must be stronger than magic bytes** (a blank/all-black
+     GIF passes that). Decode the GIF and assert: ≥ 2 frames, non-zero
+     dimensions, and non-trivial inter-frame pixel variance (the screen
+     actually changed). For the test fixture, golden-frame compare.
 
 5. **FR-5: Max duration timeout**
    - Hard cap on recording duration (default 60s, configurable)
    - Graceful teardown: kill PTY process on timeout
 
 6. **FR-6: Exit codes and error reporting**
-   - Exit 0 on success
-   - Non-zero + stderr message on failure
-   - Validate agg is available before starting
+   - Stable exit-code table so CI can assert specific failures:
+
+     | Code | Meaning |
+     |------|---------|
+     | 0 | Success |
+     | 1 | Generic/unexpected runtime error |
+     | 2 | Usage error (bad flags / unparseable keystroke script) |
+     | 3 | Prerequisite missing (`agg` not found, target binary not found/executable) |
+     | 4 | Recording hit `--max-duration` and was force-terminated |
+     | 5 | GIF produced but failed validation |
+
+   - Every non-zero exit writes a single actionable line to stderr.
+   - Only `main()` calls `os.Exit` (constitution R3).
 
 ### Non-Functional Requirements
 
@@ -121,6 +164,9 @@ tuicast record \
 | `os/exec` | Invoke agg | |
 | (stdlib) | JSON, time, IO | asciinema recorder is ~50 lines |
 
+**Canonical module path:** `github.com/gui-cs/TUIcast` (exact case — Go
+import paths are case-sensitive). `go.mod` must declare exactly this.
+
 ### Module structure:
 
 ```
@@ -141,22 +187,125 @@ pkg/
     renderer.go       # Invoke agg, validate output
   record/
     pipeline.go       # Orchestrate: PTY + recorder + player + renderer
+internal/
+  testapp/
+    main.go           # Tiny deterministic TUI used as the test fixture
 ```
 
+### Test Fixture (`internal/testapp`)
+
+Every phase after PTY needs something to record. v1 must **not** depend on
+an external app (PR #1 used UICatalog — a .NET 10 + Terminal.Gui
+`v2_develop` clone, ~90s, unusable as a Go self-test). `internal/testapp`
+is a ~30-line pure-Go TUI compiled by the test harness:
+
+- On start, clears the screen and prints a known banner + a cursor block.
+- Reads stdin: arrow keys move the block; printable keys echo at the cursor.
+- Exits cleanly on `Ctrl+Q` (`\x11`) — exercises the exact bug PR #1 hit.
+- No deps, deterministic output → enables golden `.cast` and golden-frame
+  GIF assertions, and a self-contained integration test on every OS.
+
 ---
+
+## Keystroke Script Grammar
+
+The `--keystrokes` value is a comma-separated token list. **Implement this
+section verbatim.**
+
+### Grammar (EBNF)
+
+```
+script   = token { "," token } ;
+token    = wait | click | namedkey | literal ;
+wait     = "wait:" digit { digit } ;        (* milliseconds, integer *)
+click    = "click:" int ":" int ;           (* 1-based col ":" row *)
+namedkey = (* an exact, case-sensitive entry in the Named-Key table *) ;
+literal  = (* anything else: typed verbatim, rune by rune *) ;
+```
+
+### Resolution precedence (per token, first match wins)
+
+1. Matches `wait:<digits>` → delay that many ms (no extra keystroke-delay after).
+2. Matches `click:<int>:<int>` → SGR mouse click (see table).
+3. Exactly equals a Named-Key table entry (case-sensitive) → its sequence.
+4. Otherwise → literal; type each rune with `--keystroke-delay` between runes.
+
+### Separators & escaping
+
+- List separator is `,`. Literal comma = `\,`; literal backslash = `\\`.
+- `click` uses `:` sub-separators — PR #1 chose `:` specifically to avoid
+  the `,` list-separator conflict. Keep that.
+- Key names are **case-sensitive**: `Ctrl+C` ≠ `Ctrl+c`.
+- Named keys and clicks are followed by one `--keystroke-delay`.
+- Default `--keystrokes` is `wait:3000,Ctrl+C`. Many TUIs ignore `Ctrl+C`;
+  document that the default commonly relies on `--max-duration` teardown
+  (exit 4) and recommend an explicit quit key (e.g. `Ctrl+Q`) for a clean
+  exit. (Changing the default value itself is an open decision — surface,
+  don't silently change.)
+
+### Named-Key table (complete & normative — constitution R6)
+
+Seeded from the proven prototype `keys.ts`; **F11/F12 and `Alt+<char>`
+were missing there and are added here** — every row needs a unit test.
+
+| Key | Sequence | Key | Sequence |
+|-----|----------|-----|----------|
+| `Enter` / `Return` | `\r` | `Home` | `\x1b[H` |
+| `Tab` | `\t` | `End` | `\x1b[F` |
+| `Escape` | `\x1b` | `PageUp` | `\x1b[5~` |
+| `Backspace` | `\x7f` | `PageDown` | `\x1b[6~` |
+| `Delete` | `\x1b[3~` | `F1` | `\x1bOP` |
+| `ArrowUp` | `\x1b[A` | `F2` | `\x1bOQ` |
+| `ArrowDown` | `\x1b[B` | `F3` | `\x1bOR` |
+| `ArrowRight` | `\x1b[C` | `F4` | `\x1bOS` |
+| `ArrowLeft` | `\x1b[D` | `F5` | `\x1b[15~` |
+| `F6` | `\x1b[17~` | `F7` | `\x1b[18~` |
+| `F8` | `\x1b[19~` | `F9` | `\x1b[20~` |
+| `F10` | `\x1b[21~` | `F11` | `\x1b[23~` |
+| `F12` | `\x1b[24~` | `Ctrl+A`…`Ctrl+Z` | `\x01`…`\x1a` |
+| `Alt+<char>` | `\x1b` + `<char>` | | |
+
+Mouse: `click:col:row` → SGR press+release, 1-based:
+`\x1b[<0;col;rowM` immediately followed by `\x1b[<0;col;rowm`.
+
+## Concurrency & Teardown
+
+The orchestrator (`pkg/record`) owns lifecycle. This is the part most
+likely to hang or race; implement it as specified:
+
+- A single `context.Context` carrying the `--max-duration` deadline is the
+  **only** teardown trigger. Everything selects on `ctx.Done()`.
+- Goroutines: (a) copy PTY → recorder; (b) run the keystroke player → PTY.
+  The recorder is written from exactly one goroutine (no data race).
+- **Sole owner of PTY/process close is the orchestrator**, on the first of:
+  child exits, player finishes, ctx deadline, or fatal read error.
+- **Drain window:** after the last keystroke, keep reading the PTY for a
+  short grace period (default ~500ms, ≥ `--keystroke-delay`) so the final
+  UI frame lands in the cast — without it the GIF cuts off before the
+  result is visible. This directly affects whether output "works great".
+- On Unix, a PTY read returning `EIO` (`input/output error`) after the
+  child exits is **normal EOF, not a failure** — treat as clean stream
+  end. The agent will otherwise report failure on every successful run.
+- On ctx deadline, kill the child (process group) and exit 4.
+- Verify with the race detector: `go test -race ./pkg/record`.
 
 ## Implementation Phases
 
-| Phase | Scope | Exit Criteria |
-|-------|-------|---------------|
-| 1 | Project scaffold + cross-platform PTY session | Spawn an app, read output, write input, clean exit on Linux, macOS, and Windows |
-| 2 | asciinema v2 recorder | Produce valid .cast file playable by `asciinema play` |
-| 3 | Keystroke player + key map | Parse CSV script, inject keys with delays |
-| 4 | GIF renderer (agg invocation) | Produce valid GIF from cast; validate magic bytes |
-| 5 | CLI wiring (cobra) | Full `tuicast record` command with all flags |
-| 6 | Integration tests | End-to-end: record a simple app → valid GIF on all 3 OS |
+Every exit gate is a **runnable command**, not prose — that is what makes
+the build self-verifying and autonomous. Risk is front-loaded: the ConPTY
+spike runs early and in parallel, not buried in Phase 1.
 
----
+| Phase | Scope | Verifiable Exit Gate |
+|-------|-------|----------------------|
+| 0 | Scaffold: `go.mod` (canonical path), package skeletons, `internal/testapp`, CI wired with pinned `agg` | `go build ./...`, `go vet ./...`, `golangci-lint run ./...` green on the CI matrix |
+| 1 | Unix PTY session (`creack/pty`) | `go test ./pkg/pty` (Unix): spawn testapp, send `Ctrl+Q`, assert clean exit; `EIO`-after-exit handled as EOF |
+| 2 | asciinema v2 recorder (streaming, UTF-8-safe, scripted clock) | `go test ./pkg/recorder`: golden `.cast` byte-match + split-rune test |
+| 3 | Keystroke player + complete key map | `go test ./pkg/keystroke`: a row for **every** Named-Key entry (R6) + grammar/escaping tests |
+| 4 | GIF renderer | `go test -tags integration ./pkg/gif`: render fixture cast, decode GIF, assert ≥ 2 frames + pixel variance + golden frame |
+| 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race |
+| 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuicast`: flag parsing + exit-code table; `--help` snapshot |
+| 7 | End-to-end integration (Unix) | `go test -tags integration ./...` green on ubuntu + macOS: testapp → validated GIF |
+| Spike | **Windows ConPTY** — start early, run parallel to 1–3, timeboxed | **Go/no-go decision (explicit, not silent):** if ConPTY input injection + the key map work within the timebox, fold Windows into phases 1 & 7. If not, ship v1 **Unix-only**, Windows integration skipped, ConPTY tracked as the first post-v1 item. Surface the decision per CLAUDE.md open-decision rule. |
 
 ---
 
@@ -181,8 +330,17 @@ pkg/
 
 ### CI
 
-- `.github/workflows/ci.yml` — build + unit tests + lint on all 3 OS on every push/PR
-- `.github/workflows/release.yml` — GoReleaser on `v*` tag push
+- `.github/workflows/ci.yml` — already present. Pins **Go 1.22**, runs
+  build + unit tests + `go vet` on ubuntu/macOS/windows, `golangci-lint`
+  on ubuntu, and an integration job that installs **pinned `agg v1.5.0`**
+  per-OS (Linux `x86_64-unknown-linux-musl`, macOS `aarch64-apple-darwin`)
+  then runs `go test -tags integration ./...`. Windows integration is
+  deferred pending the ConPTY go/no-go. Implementation must match this
+  workflow, not diverge from it.
+- Recommended hardening: pin `golangci-lint-action` to a fixed version
+  instead of `latest` (a new lint release otherwise breaks CI out of band)
+  and commit a minimal `.golangci.yml` documenting the enabled linters.
+- `.github/workflows/release.yml` — GoReleaser on `v*` tag push.
 
 ---
 
@@ -199,13 +357,39 @@ pkg/
 
 ---
 
+## Lessons Carried Over From the Prototype (PR #1)
+
+The Node.js prototype proved the pipeline but discovered concrete gotchas.
+Encode these so they are **not** rediscovered:
+
+- `Ctrl+Q` (`\x11`) was missing from the key map → sessions hung until
+  timeout. The full table above includes it; the testapp exits on it.
+- The prototype key map also lacked **F11/F12** and **`Alt+<char>`** —
+  added to the normative table above.
+- `agg`'s default `--line-height 1.4` adds a visible blank strip between
+  rows in TUI recordings; default to `1.0`.
+- Passing `--font-family` to `agg` on a host without that font fails;
+  omit the flag entirely when `--font` is unset.
+- Mouse uses SGR press+release (`\x1b[<0;col;rowM` / `…m`), 1-based.
+- The prototype reads decoded JS strings so it dodged UTF-8 boundary
+  bugs; Go reads raw PTY **bytes** — split runes must be buffered (FR-3).
+- The prototype recorder buffered all events in memory — do not port that;
+  stream to disk.
+- If anyone records an external Terminal.Gui app instead of the testapp:
+  it has no `main` branch (use `v2_develop`), targets `net10.0`, and
+  UICatalog lives at `Examples/UICatalog/UICatalog.csproj`. v1 should
+  rely on `internal/testapp` and not take this dependency.
+
 ## Key Risks
 
 | Risk | Mitigation |
 |------|-----------|
-| Windows ConPTY quirks | `go-conpty` is mature; Windows Terminal uses the same API |
-| agg not available on all platforms | Document as prerequisite; provide install instructions per OS |
-| Key map incompleteness | Comprehensive map from day 1; unit test every named key |
+| Windows ConPTY quirks | Early timeboxed spike with an **explicit go/no-go**; v1 may ship Unix-only with ConPTY as the first post-v1 item rather than blocking |
+| agg not available on all platforms | Pinned `agg v1.5.0`, installed per-OS in CI; required-vs-skip behavior defined; documented prerequisite for users |
+| Key map incompleteness | Full normative table in-spec (incl. the F11/F12/`Alt` gaps the prototype had); R6 unit test per row; the `Ctrl+Q` bug is the testapp's exit path |
+| Weak success signal | GIF validation decodes frames + asserts pixel variance + golden compare, not just magic bytes |
+| Non-reproducible recordings | `--clock scripted` makes `.cast`/GIF byte-stable for golden regression |
+| Concurrency hangs/races | Single-context teardown, single PTY-close owner, drain window, `EIO`-as-EOF, `-race` gate |
 | Learning Go | Project is well-scoped; PTY handling is the only complex part |
 
 ---
@@ -213,8 +397,13 @@ pkg/
 ## Success Criteria
 
 v1 is done when:
-1. `tuicast record --binary /path/to/app --keystrokes "..." --output demo.gif` produces a valid animated GIF
-2. Works on Linux, macOS, and Windows
-3. Single binary, no runtime deps beyond agg
-4. README with install instructions and usage examples
-5. CI passing on all 3 platforms
+1. `tuicast record --binary /path/to/app --keystrokes "..." --output demo.gif`
+   produces a GIF that **decodes to ≥ 2 frames with non-trivial inter-frame
+   pixel variance** (not just valid magic bytes)
+2. Every phase exit gate passes: `go test ./...`, `go test -race ./pkg/record`,
+   and `go test -tags integration ./...` green
+3. Works on Linux and macOS; Windows per the ConPTY go/no-go (Unix-only is
+   an acceptable v1 outcome if ConPTY is deferred — decided explicitly)
+4. Single binary, no runtime deps beyond pinned `agg v1.5.0`
+5. README with install instructions and usage examples
+6. CI green on the matrix (Windows integration may be skipped per go/no-go)
