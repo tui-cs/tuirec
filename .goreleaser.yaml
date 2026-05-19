@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
+project_name: tuicast
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: tuicast
+    main: ./cmd/tuicast
+    binary: tuicast
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: gui-cs
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/gui-cs/TUIcast"
+    description: "Cross-platform CLI that records terminal apps and produces animated GIFs"
+    license: "MIT"
+    install: |
+      bin.install "tuicast"
+    test: |
+      system "#{bin}/tuicast", "--version"
+    dependencies:
+      - name: agg
+        type: optional
+
+scoops:
+  - repository:
+      owner: gui-cs
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: "https://github.com/gui-cs/TUIcast"
+    description: "Cross-platform CLI that records terminal apps and produces animated GIFs"
+    license: "MIT"
+
+release:
+  github:
+    owner: gui-cs
+    name: TUIcast
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
