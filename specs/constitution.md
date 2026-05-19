@@ -139,7 +139,7 @@ Fail fast with a clear error message. Don't record for 60 seconds then fail at t
 
 All tests run on: `ubuntu-latest`, `macos-latest`, `windows-latest`.
 
-Integration tests may skip on Windows until ConPTY support lands (Phase 7).
+Integration tests may skip on Windows only when they exercise functionality not yet available on that platform.
 
 ### Conventions
 

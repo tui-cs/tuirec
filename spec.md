@@ -116,7 +116,7 @@ tuicast record \
 | Package | Purpose | Notes |
 |---------|---------|-------|
 | `creack/pty` | Unix PTY spawn | Linux + macOS |
-| `iamacarpet/go-conpty` | Windows ConPTY | Windows |
+| `UserExistsError/conpty` | Windows ConPTY | Windows |
 | `cobra` or `pflag` | CLI argument parsing | |
 | `os/exec` | Invoke agg | |
 | (stdlib) | JSON, time, IO | asciinema recorder is ~50 lines |
@@ -203,7 +203,7 @@ pkg/
 
 | Risk | Mitigation |
 |------|-----------|
-| Windows ConPTY quirks | `go-conpty` is mature; Windows Terminal uses the same API |
+| Windows ConPTY quirks | `UserExistsError/conpty` wraps the stable Windows ConPTY API |
 | agg not available on all platforms | Document as prerequisite; provide install instructions per OS |
 | Key map incompleteness | Comprehensive map from day 1; unit test every named key |
 | Learning Go | Project is well-scoped; PTY handling is the only complex part |

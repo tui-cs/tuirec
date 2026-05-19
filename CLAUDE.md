@@ -126,7 +126,7 @@ Minimize external dependencies. Current expected deps:
 | Package | Purpose |
 |---------|---------|
 | `github.com/creack/pty` | Unix PTY |
-| `github.com/iamacarpet/go-conpty` | Windows ConPTY |
+| `github.com/UserExistsError/conpty` | Windows ConPTY |
 | `github.com/spf13/cobra` | CLI framework |
 | (stdlib) | Everything else |
 
@@ -195,9 +195,8 @@ Don't accidentally pursue these:
 
 See `spec.md` § "Key Risks" for known unknowns. Key open questions:
 
-1. Windows ConPTY library choice — `go-conpty` vs raw syscalls vs something else
-2. Whether to bundle `agg` or require it as a prerequisite
-3. Mouse event encoding format (currently `click:col:row` from prototype)
+1. Whether to bundle `agg` or require it as a prerequisite
+2. Mouse event encoding format (currently `click:col:row` from prototype)
 
 If a task touches one of these, surface the decision rather than picking unilaterally.
 
