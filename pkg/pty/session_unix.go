@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 
 	creackpty "github.com/creack/pty"
 )
@@ -17,8 +19,10 @@ type unixSession struct {
 	file *os.File
 	cmd  *exec.Cmd
 
-	waitOnce sync.Once
-	waitCh   chan waitResult
+	waitOnce  sync.Once
+	waitCh    chan waitResult
+	closeOnce sync.Once
+	closeErr  error
 }
 
 type waitResult struct {
@@ -52,7 +56,12 @@ func start(binary string, args []string, size Size, options Options) (Session, e
 }
 
 func (s *unixSession) Read(p []byte) (int, error) {
-	return s.file.Read(p)
+	n, err := s.file.Read(p)
+	if n == 0 && (errors.Is(err, syscall.EIO) || errors.Is(err, os.ErrClosed)) {
+		return 0, io.EOF
+	}
+
+	return n, err
 }
 
 func (s *unixSession) Write(p []byte) (int, error) {
@@ -60,24 +69,34 @@ func (s *unixSession) Write(p []byte) (int, error) {
 }
 
 func (s *unixSession) Close() error {
-	var closeErr error
-	if s.file != nil {
-		closeErr = s.file.Close()
-	}
-
-	if s.cmd.Process == nil {
-		return closeErr
-	}
-
-	if err := s.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		if closeErr != nil {
-			return fmt.Errorf("close pty: %w; kill process: %v", closeErr, err)
+	s.closeOnce.Do(func() {
+		var closeErr error
+		if s.file != nil {
+			closeErr = s.file.Close()
 		}
 
-		return fmt.Errorf("kill process: %w", err)
-	}
+		if s.cmd.Process == nil {
+			s.closeErr = closeErr
 
-	return closeErr
+			return
+		}
+
+		if err := s.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			if closeErr != nil {
+				s.closeErr = fmt.Errorf("close pty: %w; kill process: %v", closeErr, err)
+
+				return
+			}
+
+			s.closeErr = fmt.Errorf("kill process: %w", err)
+
+			return
+		}
+
+		s.closeErr = closeErr
+	})
+
+	return s.closeErr
 }
 
 func (s *unixSession) Pid() int {

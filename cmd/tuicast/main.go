@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gui-cs/TUIcast/pkg/record"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +23,13 @@ func main() {
 
 	root.SetVersionTemplate("tuicast {{.Version}}\n")
 	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
+	root.AddCommand(&cobra.Command{
+		Use:   record.CommandName,
+		Short: "Record a terminal app (planned)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("%s command is not implemented yet", record.CommandName)
+		},
+	})
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

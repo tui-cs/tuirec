@@ -4,15 +4,21 @@ package pty
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"sync"
 	"syscall"
 
 	conpty "github.com/UserExistsError/conpty"
 )
 
 type windowsSession struct {
-	pty *conpty.ConPty
+	pty       *conpty.ConPty
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func start(binary string, args []string, size Size, options Options) (Session, error) {
@@ -35,7 +41,12 @@ func start(binary string, args []string, size Size, options Options) (Session, e
 }
 
 func (s *windowsSession) Read(p []byte) (int, error) {
-	return s.pty.Read(p)
+	n, err := s.pty.Read(p)
+	if n == 0 && isConPTYEOF(err) {
+		return 0, io.EOF
+	}
+
+	return n, err
 }
 
 func (s *windowsSession) Write(p []byte) (int, error) {
@@ -43,7 +54,11 @@ func (s *windowsSession) Write(p []byte) (int, error) {
 }
 
 func (s *windowsSession) Close() error {
-	return s.pty.Close()
+	s.closeOnce.Do(func() {
+		s.closeErr = s.pty.Close()
+	})
+
+	return s.closeErr
 }
 
 func (s *windowsSession) Pid() int {
@@ -77,4 +92,10 @@ func commandLine(binary string, args []string) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+func isConPTYEOF(err error) bool {
+	return errors.Is(err, os.ErrClosed) ||
+		errors.Is(err, syscall.ERROR_BROKEN_PIPE) ||
+		errors.Is(err, syscall.Errno(233))
 }

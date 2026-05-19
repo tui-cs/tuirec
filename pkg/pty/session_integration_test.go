@@ -1,11 +1,12 @@
 package pty_test
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,22 +14,18 @@ import (
 	"github.com/gui-cs/TUIcast/pkg/pty"
 )
 
-func TestSessionEchoRoundTrip(t *testing.T) {
+func TestSessionRunsTestappAndQuitsWithCtrlQ(t *testing.T) {
 	t.Parallel()
 
-	executable, err := os.Executable()
-	if err != nil {
-		t.Fatalf("os.Executable: %v", err)
-	}
-
+	binary := buildTestapp(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	session, err := pty.Start(
-		executable,
-		[]string{"-test.run=TestHelperProcess", "--", "echo"},
+		binary,
+		nil,
 		pty.Size{Cols: 80, Rows: 24},
-		pty.Options{Env: append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")},
+		pty.Options{Env: os.Environ()},
 	)
 	if err != nil {
 		t.Fatalf("pty.Start: %v", err)
@@ -39,16 +36,10 @@ func TestSessionEchoRoundTrip(t *testing.T) {
 	readErr := make(chan error, 1)
 	go readChunks(ctx, session, output, readErr)
 
-	waitForOutput(t, ctx, output, "ready>")
+	waitForOutput(t, ctx, output, "TUIcast testapp ready")
 
-	if _, err := session.Write([]byte("hello\r\n")); err != nil {
-		t.Fatalf("session.Write hello: %v", err)
-	}
-
-	waitForOutput(t, ctx, output, "echo: hello")
-
-	if _, err := session.Write([]byte("exit\r\n")); err != nil {
-		t.Fatalf("session.Write exit: %v", err)
+	if _, err := session.Write([]byte{0x11}); err != nil {
+		t.Fatalf("write Ctrl+Q: %v", err)
 	}
 
 	status, err := session.Wait(ctx)
@@ -59,31 +50,64 @@ func TestSessionEchoRoundTrip(t *testing.T) {
 	if status.Code != 0 {
 		t.Fatalf("exit code = %d, want 0", status.Code)
 	}
+
+	if err := session.Close(); err != nil {
+		t.Fatalf("session.Close: %v", err)
+	}
+
+	select {
+	case err := <-readErr:
+		if !errors.Is(err, io.EOF) {
+			t.Fatalf("read error after clean exit = %v, want EOF", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for read EOF after clean exit")
+	}
 }
 
-func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
+func buildTestapp(t *testing.T) string {
+	t.Helper()
+
+	binary := filepath.Join(t.TempDir(), executableName("tuicast-testapp"))
+	cmd := exec.Command("go", "build", "-o", binary, "./internal/testapp")
+	cmd.Dir = repoRoot(t)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build internal/testapp: %v\n%s", err, output)
 	}
 
-	defer os.Exit(0)
+	return binary
+}
 
-	fmt.Fprintln(os.Stdout, "ready>")
-	reader := bufio.NewReader(os.Stdin)
+func repoRoot(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+
 	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "read stdin: %v\n", err)
-			os.Exit(1)
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
 		}
 
-		line = strings.TrimRight(line, "\r\n")
-		if line == "exit" {
-			return
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("go.mod not found from %s", dir)
 		}
 
-		fmt.Fprintf(os.Stdout, "echo: %s\n", line)
+		dir = parent
 	}
+}
+
+func executableName(name string) string {
+	if os.PathSeparator == '\\' {
+		return name + ".exe"
+	}
+
+	return name
 }
 
 func readChunks(ctx context.Context, reader io.Reader, output chan<- string, readErr chan<- error) {
