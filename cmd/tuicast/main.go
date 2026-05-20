@@ -90,6 +90,8 @@ type recordFlags struct {
 	maxDurationSec     int
 	drainMS            int
 	kittyKeyboard      bool
+	openGIF            bool
+	copyPath           bool
 	verbosity          string
 }
 
@@ -216,6 +218,8 @@ pacing to stderr.`,
 	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
 	cmd.Flags().StringVar(&flags.verbosity, "verbosity", flags.verbosity, "Output verbosity: quiet, normal, or high")
 	cmd.Flags().BoolVar(&flags.kittyKeyboard, "kitty-keyboard", false, "Enable Kitty keyboard protocol: encode keystrokes as CSI u and respond to app mode queries")
+	cmd.Flags().BoolVar(&flags.openGIF, "open", false, "Open the GIF in the default viewer after recording")
+	cmd.Flags().BoolVar(&flags.copyPath, "copy", false, "Copy the GIF file path to the system clipboard after recording")
 
 	return cmd
 }
@@ -360,6 +364,26 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	}
 	if flags.verbosity != "quiet" && !cleanupCast && result.CastPath != "" {
 		fmt.Fprintf(options.stdout, "Wrote %s\n", result.CastPath)
+	}
+
+	if result.GIFPath != "" {
+		absGIF, _ := filepath.Abs(result.GIFPath)
+		if absGIF == "" {
+			absGIF = result.GIFPath
+		}
+
+		if flags.copyPath {
+			if err := copyToClipboard(absGIF); err != nil && flags.verbosity != "quiet" {
+				fmt.Fprintf(options.stderr, "Warning: could not copy to clipboard: %v\n", err)
+			} else if flags.verbosity != "quiet" {
+				fmt.Fprintf(options.stderr, "Copied path to clipboard\n")
+			}
+		}
+		if flags.openGIF {
+			if err := openFile(absGIF); err != nil && flags.verbosity != "quiet" {
+				fmt.Fprintf(options.stderr, "Warning: could not open GIF: %v\n", err)
+			}
+		}
 	}
 
 	return nil

@@ -246,6 +246,8 @@ flags. `tuicast` will auto-download `agg` if it's not on PATH.
 | `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
 | `--args` | No | — | Arguments to pass to the binary |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
+| `--open` | No | false | Open the GIF in the default viewer after recording |
+| `--copy` | No | false | Copy the GIF file path to the system clipboard |
 
 ---
 
@@ -262,8 +264,11 @@ When asked to "record <app> doing X", follow this process:
 3. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
 4. **Compose the keystroke string** — use waits generously between transitions.
-5. **Call `tuicast record --name <name>`** with appropriate parameters. The binary
-   auto-downloads agg and creates the artifacts/ directory as needed.
+5. **Call `tuicast record --name <name> --open --copy`** with appropriate
+   parameters. `--open` launches the GIF in the default viewer so the user sees
+   the result immediately; `--copy` puts the GIF path on the clipboard. Always
+   include both. The binary auto-downloads agg and creates the artifacts/
+   directory as needed.
 6. **If execution fails due to permissions**, output the full command for the user
    to run manually — do not loop retrying.
 7. **Report the output paths** back to the user.
