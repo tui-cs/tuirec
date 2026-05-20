@@ -66,8 +66,13 @@
     TUIcast verbosity level: quiet, normal, high. 'high' logs key tokens and
     pacing to stderr for troubleshooting. Default: not set.
 
+.PARAMETER KittyKeyboard
+    Enable Kitty keyboard protocol. Encodes keystrokes as CSI u sequences and
+    responds to app mode queries. Use for Terminal.Gui and other apps that
+    support progressive enhancement — disambiguates Ctrl+M from Enter, etc.
+
 .PARAMETER TuicastVersion
-    TUIcast release version to download if not found. Default: 0.1.3
+    TUIcast release version to download if not found. Default: 0.1.5
 #>
 [CmdletBinding()]
 param (
@@ -90,7 +95,8 @@ param (
     [int]      $StartupDelay = 0,
     [int]      $InputDelay = 0,
     [string]   $Verbosity,
-    [string]   $TuicastVersion = '0.1.3'
+    [switch]   $KittyKeyboard,
+    [string]   $TuicastVersion = '0.1.5'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -219,6 +225,7 @@ if ($ShowCommand)        { $recordArgs += '--show-command';   $recordArgs += $Sh
 if ($StartupDelay -gt 0) { $recordArgs += '--startup-delay'; $recordArgs += $StartupDelay }
 if ($InputDelay -gt 0)   { $recordArgs += '--input-delay';   $recordArgs += $InputDelay }
 if ($Verbosity)          { $recordArgs += '--verbosity';     $recordArgs += $Verbosity }
+if ($KittyKeyboard)      { $recordArgs += '--kitty-keyboard' }
 
 & $TuicastBin @recordArgs
 
