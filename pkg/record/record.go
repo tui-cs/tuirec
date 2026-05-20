@@ -239,6 +239,13 @@ func writeCommandPreRoll(ctx context.Context, writer io.Writer, config Config) e
 		return nil
 	}
 
+	// Enter alternate screen so the pre-roll and app UI share the same
+	// buffer. Without this, agg renders the pre-roll on the main screen
+	// and the app's alternate-screen content separately.
+	if _, err := io.WriteString(writer, "\x1b[?1049h"); err != nil {
+		return fmt.Errorf("write command pre-roll: %w", err)
+	}
+
 	logf(config, "show command %q\n", config.ShowCommand)
 	for _, r := range config.ShowCommand {
 		logf(config, "show-command type %q; delay %s\n", r, config.CommandDelay)

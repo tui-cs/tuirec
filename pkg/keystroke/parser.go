@@ -141,8 +141,12 @@ func looksLikeKey(token string) bool {
 		return true
 	}
 	lower := strings.ToLower(token)
-	if isKeyIdentifier(token) && (strings.HasPrefix(lower, "arrow") || strings.HasPrefix(lower, "cursor") || strings.HasPrefix(lower, "page")) {
-		return true
+	if isKeyIdentifier(token) {
+		if (strings.HasPrefix(lower, "arrow") && len(token) > len("arrow")) ||
+			(strings.HasPrefix(lower, "cursor") && len(token) > len("cursor")) ||
+			(strings.HasPrefix(lower, "page") && len(token) > len("page")) {
+			return true
+		}
 	}
 	if (strings.HasPrefix(token, "F") || strings.HasPrefix(token, "f")) && len(token) > 1 && allDigits(token[1:]) {
 		return true
