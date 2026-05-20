@@ -2,7 +2,7 @@
 
 version: 2
 
-project_name: tuicast
+project_name: tuirec
 
 before:
   hooks:
@@ -10,9 +10,9 @@ before:
     - go run ./internal/release/downloadagg
 
 builds:
-  - id: tuicast
-    main: ./cmd/tuicast
-    binary: tuicast
+  - id: tuirec
+    main: ./cmd/tuirec
+    binary: tuirec
     env:
       - CGO_ENABLED=0
     goos:
@@ -63,7 +63,7 @@ changelog:
 release:
   github:
     owner: gui-cs
-    name: TUIcast
+    name: tuirec
   draft: false
   prerelease: auto
   name_template: "v{{ .Version }}"

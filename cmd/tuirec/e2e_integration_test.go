@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/gif"
 )
 
 func TestRecordCommandEndToEndGIF(t *testing.T) {
@@ -21,7 +21,7 @@ func TestRecordCommandEndToEndGIF(t *testing.T) {
 		t.Skip("agg not installed")
 	}
 
-	tuicast := buildTuicast(t, repo)
+	tuirec := buildtuirec(t, repo)
 	testapp := buildTestapp(t, repo)
 	output := filepath.Join(t.TempDir(), "cli-demo.gif")
 	castOutput := filepath.Join(t.TempDir(), "cli-demo.cast")
@@ -31,7 +31,7 @@ func TestRecordCommandEndToEndGIF(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, tuicast,
+	cmd := exec.CommandContext(ctx, tuirec,
 		"record",
 		"--binary", testapp,
 		"--keystrokes", "wait:1000,ArrowRight,ArrowDown,`Hi`,wait:500,Ctrl+Q",
@@ -44,7 +44,7 @@ func TestRecordCommandEndToEndGIF(t *testing.T) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("tuicast record: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+		t.Fatalf("tuirec record: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
 
 	if _, err := os.Stat(castOutput); err != nil {
@@ -81,16 +81,16 @@ func aggAvailable(repo string) bool {
 	return err == nil
 }
 
-func buildTuicast(t *testing.T, repo string) string {
+func buildtuirec(t *testing.T, repo string) string {
 	t.Helper()
 
-	binary := filepath.Join(t.TempDir(), executableName("tuicast"))
-	cmd := exec.Command("go", "build", "-o", binary, "./cmd/tuicast")
+	binary := filepath.Join(t.TempDir(), executableName("tuirec"))
+	cmd := exec.Command("go", "build", "-o", binary, "./cmd/tuirec")
 	cmd.Dir = repo
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("build cmd/tuicast: %v\n%s", err, output)
+		t.Fatalf("build cmd/tuirec: %v\n%s", err, output)
 	}
 
 	return binary
@@ -99,7 +99,7 @@ func buildTuicast(t *testing.T, repo string) string {
 func buildTestapp(t *testing.T, repo string) string {
 	t.Helper()
 
-	binary := filepath.Join(t.TempDir(), executableName("tuicast-testapp"))
+	binary := filepath.Join(t.TempDir(), executableName("tuirec-testapp"))
 	cmd := exec.Command("go", "build", "-o", binary, "./internal/testapp")
 	cmd.Dir = repo
 

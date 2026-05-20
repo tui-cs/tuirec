@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/pty"
+	"github.com/gui-cs/tuirec/pkg/pty"
 )
 
 func TestSessionRunsTestappAndQuitsWithCtrlQ(t *testing.T) {
@@ -36,7 +36,7 @@ func TestSessionRunsTestappAndQuitsWithCtrlQ(t *testing.T) {
 	readErr := make(chan error, 1)
 	go readChunks(ctx, session, output, readErr)
 
-	waitForOutput(t, ctx, output, "TUIcast testapp ready")
+	waitForOutput(t, ctx, output, "tuirec testapp ready")
 
 	if _, err := session.Write([]byte{0x11}); err != nil {
 		t.Fatalf("write Ctrl+Q: %v", err)
@@ -68,7 +68,7 @@ func TestSessionRunsTestappAndQuitsWithCtrlQ(t *testing.T) {
 func buildTestapp(t *testing.T) string {
 	t.Helper()
 
-	binary := filepath.Join(t.TempDir(), executableName("tuicast-testapp"))
+	binary := filepath.Join(t.TempDir(), executableName("tuirec-testapp"))
 	cmd := exec.Command("go", "build", "-o", binary, "./internal/testapp")
 	cmd.Dir = repoRoot(t)
 

@@ -1,37 +1,37 @@
-# TUIcast
+# tuirec
 
 **Cross-platform CLI that records any terminal app and produces an animated GIF.**
 
-Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools.
+Give it a binary and a keystroke script â†’ get a polished GIF. No manual screen recording, no browser-based tools.
 
-![TUIcast demo — recording UICatalog](artifacts/hero.gif)
+![tuirec demo â€” recording UICatalog](artifacts/hero.gif)
 
 ## Install
 
 ```sh
 # Go (requires Go 1.22+)
-go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
+go install github.com/gui-cs/tuirec/cmd/tuirec@latest
 ```
 
 `go install` places the binary in `$(go env GOPATH)/bin/`. Ensure that
 directory is on your PATH:
 
 ```sh
-# Linux / macOS — add to ~/.bashrc, ~/.zshrc, or equivalent:
+# Linux / macOS â€” add to ~/.bashrc, ~/.zshrc, or equivalent:
 export PATH="$PATH:$(go env GOPATH)/bin"
 
-# Windows (PowerShell) — add to your user PATH permanently:
+# Windows (PowerShell) â€” add to your user PATH permanently:
 $gobin = "$(go env GOPATH)\bin"
 [Environment]::SetEnvironmentVariable("Path", "$env:Path;$gobin", "User")
 # Then restart your terminal.
 ```
 
-Verify: `tuicast --version`
+Verify: `tuirec --version`
 
-Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuicast`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
+Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuicast/agg-v1.5.0/` on Unix, `%LOCALAPPDATA%\tuicast\agg-v1.5.0\` on Windows). You can also pass `--agg-path` explicitly.
+**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.5.0/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.5.0\` on Windows). You can also pass `--agg-path` explicitly.
 
 ## Build and Run Locally on Windows
 
@@ -40,9 +40,9 @@ The CLI shell, cross-platform PTY, asciinema recorder, keystroke player, GIF ren
 From the repo root:
 
 ```powershell
-go build -o .\tuicast.exe .\cmd\tuicast
-.\tuicast.exe --version
-.\tuicast.exe --help
+go build -o .\tuirec.exe .\cmd\tuirec
+.\tuirec.exe --version
+.\tuirec.exe --help
 ```
 
 Run the Windows ConPTY tests:
@@ -51,7 +51,7 @@ Run the Windows ConPTY tests:
 go test .\...
 ```
 
-If `agg` is installed on your PATH or next to `tuicast`, run the GIF renderer and CLI end-to-end integration tests:
+If `agg` is installed on your PATH or next to `tuirec`, run the GIF renderer and CLI end-to-end integration tests:
 
 ```powershell
 go test -tags integration .\...
@@ -67,7 +67,7 @@ Invoke-WebRequest `
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. The Windows ARM64 TUIcast release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
+On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. The Windows ARM64 tuirec release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 
@@ -86,7 +86,7 @@ Invoke-Item .\pipeline-demo.gif
 To run the real CLI against the bundled test TUI and open the result:
 
 ```powershell
-go run .\cmd\tuicast record `
+go run .\cmd\tuirec record `
   --binary go `
   --args run,.\internal\testapp `
   --keystrokes "wait:1000,ArrowRight,ArrowDown,`Hi`,wait:500,Ctrl+Q" `
@@ -98,7 +98,7 @@ Invoke-Item .\cli-demo.gif
 ## Usage
 
 ```sh
-tuicast record \
+tuirec record \
   --binary ./myapp \
   --name "demo" \
   --show-command '$ myapp foo.cs' \
@@ -137,17 +137,17 @@ work without quoting. Unknown bare tokens produce a clear error with guidance.
 
 ## For AI Agents
 
-TUIcast is designed to be driven by AI coding agents. Run:
+tuirec is designed to be driven by AI coding agents. Run:
 
 ```sh
-tuicast agent-guide
+tuirec agent-guide
 ```
 
 This prints the full keystroke syntax reference, best practices, and examples.
 AI agents can use this output to compose keystroke scripts and invoke recordings
 without any prior knowledge of the tool.
 
-If TUIcast is not installed, download it from
-[GitHub Releases](https://github.com/gui-cs/TUIcast/releases) — archives
-include both `tuicast` and `agg`. See [`llms.txt`](llms.txt) for a
+If tuirec is not installed, download it from
+[GitHub Releases](https://github.com/gui-cs/tuirec/releases) â€” archives
+include both `tuirec` and `agg`. See [`llms.txt`](llms.txt) for a
 machine-readable project summary.

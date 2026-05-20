@@ -71,12 +71,12 @@ func TestPlayerLogsActionsAndPacing(t *testing.T) {
 
 	got := log.String()
 	for _, want := range []string{
-		"tuicast: key Ctrl+Q",
+		"tuirec: key Ctrl+Q",
 		"delay 25ms",
-		"tuicast: wait wait:100 (100ms)",
-		"tuicast: literal 'a'",
-		"tuicast: literal delay 25ms",
-		"tuicast: literal 'b'",
+		"tuirec: wait wait:100 (100ms)",
+		"tuirec: literal 'a'",
+		"tuirec: literal delay 25ms",
+		"tuirec: literal 'b'",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log missing %q:\n%s", want, got)

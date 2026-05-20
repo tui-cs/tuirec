@@ -135,7 +135,7 @@ func (p Player) logf(format string, args ...any) {
 		return
 	}
 
-	fmt.Fprintf(p.log, "tuicast: "+format, args...)
+	fmt.Fprintf(p.log, "tuirec: "+format, args...)
 }
 
 func actionName(action Action) string {
