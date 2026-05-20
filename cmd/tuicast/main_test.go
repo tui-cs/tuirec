@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gui-cs/TUIcast/pkg/gif"
 	"github.com/gui-cs/TUIcast/pkg/record"
@@ -155,6 +156,61 @@ func TestRecordCommandCastOnlyDoesNotRequireAgg(t *testing.T) {
 		t.Fatalf("Output = %q, want empty", got.Output)
 	}
 }
+
+func TestDefaultAggPathPrefersSiblingBinary(t *testing.T) {
+	t.Parallel()
+
+	executablePath := filepath.Join("release", "tuicast.exe")
+	siblingAgg := filepath.Join("release", "agg.exe")
+	toolsAgg := filepath.Join("tools", "agg.exe")
+
+	got := defaultAggPathFor(
+		func() (string, error) {
+			return executablePath, nil
+		},
+		func(path string) (os.FileInfo, error) {
+			switch path {
+			case siblingAgg, toolsAgg:
+				return fakeFileInfo{}, nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		},
+	)
+	if got != siblingAgg {
+		t.Fatalf("defaultAggPathFor() = %q, want %q", got, siblingAgg)
+	}
+}
+
+func TestDefaultAggPathFallsBackToTools(t *testing.T) {
+	t.Parallel()
+
+	toolsAgg := filepath.Join("tools", "agg")
+	got := defaultAggPathFor(
+		func() (string, error) {
+			return filepath.Join("release", "tuicast"), nil
+		},
+		func(path string) (os.FileInfo, error) {
+			if path == toolsAgg {
+				return fakeFileInfo{}, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+	)
+	if got != toolsAgg {
+		t.Fatalf("defaultAggPathFor() = %q, want %q", got, toolsAgg)
+	}
+}
+
+type fakeFileInfo struct{}
+
+func (fakeFileInfo) Name() string       { return "agg" }
+func (fakeFileInfo) Size() int64        { return 1 }
+func (fakeFileInfo) Mode() os.FileMode  { return 0o755 }
+func (fakeFileInfo) ModTime() time.Time { return time.Time{} }
+func (fakeFileInfo) IsDir() bool        { return false }
+func (fakeFileInfo) Sys() any           { return nil }
 
 func TestRecordCommandExitCodes(t *testing.T) {
 	t.Parallel()

@@ -244,11 +244,27 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 }
 
 func defaultAggPath() string {
+	return defaultAggPathFor(os.Executable, os.Stat)
+}
+
+func defaultAggPathFor(executable func() (string, error), stat func(string) (os.FileInfo, error)) string {
+	if executablePath, err := executable(); err == nil {
+		executableDir := filepath.Dir(executablePath)
+		for _, candidate := range []string{
+			filepath.Join(executableDir, "agg.exe"),
+			filepath.Join(executableDir, "agg"),
+		} {
+			if _, err := stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
 	for _, candidate := range []string{
 		filepath.Join("tools", "agg.exe"),
 		filepath.Join("tools", "agg"),
 	} {
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := stat(candidate); err == nil {
 			return candidate
 		}
 	}
