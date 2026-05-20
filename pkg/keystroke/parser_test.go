@@ -2,6 +2,7 @@ package keystroke
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -9,7 +10,7 @@ import (
 func TestParseScript(t *testing.T) {
 	t.Parallel()
 
-	actions, err := Parse(`wait:300,click:39:3,Enter,hello\,world,slash\\done`)
+	actions, err := Parse("wait:300,click:39:3,Enter,`hello world`,`slash\\done`")
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
@@ -18,8 +19,8 @@ func TestParseScript(t *testing.T) {
 		{Kind: Wait, Label: "wait:300", Delay: 300 * time.Millisecond},
 		{Kind: Write, Sequence: "\x1b[<0;39;3M\x1b[<0;39;3m", Label: "click:39:3"},
 		{Kind: Write, Sequence: "\r", Label: "Enter"},
-		{Kind: Literal, Sequence: "hello,world", Label: "hello,world"},
-		{Kind: Literal, Sequence: `slash\done`, Label: `slash\done`},
+		{Kind: Literal, Sequence: "hello world", Label: "`hello world`"},
+		{Kind: Literal, Sequence: `slash\done`, Label: "`slash\\done`"},
 	}
 
 	if !reflect.DeepEqual(actions, want) {
@@ -108,39 +109,99 @@ func TestParseTerminalGUIKeyStrings(t *testing.T) {
 	}
 }
 
-func TestParseLiteralThatStartsWithKeyPrefix(t *testing.T) {
+func TestParseLiteralWithBackticks(t *testing.T) {
 	t.Parallel()
 
-	actions, err := Parse("Page title,Arrow key,Ctrl-C to stop,Alt-text")
+	actions, err := Parse("`Page title`,`Arrow key`,`Ctrl-C to stop`,`Alt-text`")
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
 
 	want := []Action{
-		{Kind: Literal, Sequence: "Page title", Label: "Page title"},
-		{Kind: Literal, Sequence: "Arrow key", Label: "Arrow key"},
-		{Kind: Literal, Sequence: "Ctrl-C to stop", Label: "Ctrl-C to stop"},
-		{Kind: Literal, Sequence: "Alt-text", Label: "Alt-text"},
+		{Kind: Literal, Sequence: "Page title", Label: "`Page title`"},
+		{Kind: Literal, Sequence: "Arrow key", Label: "`Arrow key`"},
+		{Kind: Literal, Sequence: "Ctrl-C to stop", Label: "`Ctrl-C to stop`"},
+		{Kind: Literal, Sequence: "Alt-text", Label: "`Alt-text`"},
 	}
 	if !reflect.DeepEqual(actions, want) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
 }
 
-func TestParseBareNavigationPrefixIsLiteral(t *testing.T) {
-t.Parallel()
+func TestParseBareWordsRequireBackticks(t *testing.T) {
+	t.Parallel()
 
-actions, err := Parse("cursor,page,arrow")
-if err != nil {
-t.Fatalf("Parse: %v", err)
+	// Bare multi-char tokens that aren't keys must be backtick-quoted.
+	bareWords := []string{"cursor", "page", "arrow", "hello"}
+	for _, word := range bareWords {
+		if _, err := Parse(word); err == nil {
+			t.Errorf("Parse(%q) err = nil, want error requiring backticks", word)
+		}
+	}
+
+	// Backtick-quoted versions work fine.
+	actions, err := Parse("`cursor`,`page`,`arrow`,`hello`")
+	if err != nil {
+		t.Fatalf("Parse backtick-quoted: %v", err)
+	}
+
+	want := []Action{
+		{Kind: Literal, Sequence: "cursor", Label: "`cursor`"},
+		{Kind: Literal, Sequence: "page", Label: "`page`"},
+		{Kind: Literal, Sequence: "arrow", Label: "`arrow`"},
+		{Kind: Literal, Sequence: "hello", Label: "`hello`"},
+	}
+	if !reflect.DeepEqual(actions, want) {
+		t.Fatalf("Parse() = %#v, want %#v", actions, want)
+	}
 }
 
-want := []Action{
-{Kind: Literal, Sequence: "cursor", Label: "cursor"},
-{Kind: Literal, Sequence: "page", Label: "page"},
-{Kind: Literal, Sequence: "arrow", Label: "arrow"},
+func TestParseLiteralWithCommasInBackticks(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("`hello,world`,Enter,`a,b,c`")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := []Action{
+		{Kind: Literal, Sequence: "hello,world", Label: "`hello,world`"},
+		{Kind: Write, Sequence: "\r", Label: "Enter"},
+		{Kind: Literal, Sequence: "a,b,c", Label: "`a,b,c`"},
+	}
+	if !reflect.DeepEqual(actions, want) {
+		t.Fatalf("Parse() = %#v, want %#v", actions, want)
+	}
 }
-if !reflect.DeepEqual(actions, want) {
-t.Fatalf("Parse() = %#v, want %#v", actions, want)
+
+func TestParseUnclosedBacktickError(t *testing.T) {
+	t.Parallel()
+
+	_, err := Parse("`hello")
+	if err == nil {
+		t.Fatal("Parse(`hello) err = nil, want unclosed backtick error")
+	}
+	if !strings.Contains(err.Error(), "unclosed backtick") {
+		t.Fatalf("error = %q, want it to mention unclosed backtick", err.Error())
+	}
 }
+
+func TestParseCapitalizedKeysStillWork(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("CursorUp,PageDown,Delete,Enter,Esc")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := []Action{
+		{Kind: Write, Sequence: "\x1b[A", Label: "CursorUp"},
+		{Kind: Write, Sequence: "\x1b[6~", Label: "PageDown"},
+		{Kind: Write, Sequence: "\x1b[3~", Label: "Delete"},
+		{Kind: Write, Sequence: "\r", Label: "Enter"},
+		{Kind: Write, Sequence: "\x1b", Label: "Esc"},
+	}
+	if !reflect.DeepEqual(actions, want) {
+		t.Fatalf("Parse() = %#v, want %#v", actions, want)
+	}
 }

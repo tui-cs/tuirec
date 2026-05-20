@@ -48,6 +48,12 @@ func Parse(script string) ([]Action, error) {
 }
 
 func parseToken(token string) (Action, error) {
+	// Backtick-quoted tokens are always literal text.
+	if len(token) >= 2 && token[0] == '`' && token[len(token)-1] == '`' {
+		text := token[1 : len(token)-1]
+		return Action{Kind: Literal, Sequence: text, Label: token}, nil
+	}
+
 	if milliseconds, ok, err := parseWait(token); ok || err != nil {
 		if err != nil {
 			return Action{}, err
@@ -68,11 +74,13 @@ func parseToken(token string) (Action, error) {
 		return Action{Kind: Write, Sequence: sequence, Label: token}, nil
 	}
 
-	if looksLikeKey(token) {
-		return Action{}, fmt.Errorf("unknown key: %s", token)
+	// Single printable characters that didn't resolve as named keys are typed
+	// as literal (e.g. punctuation, digits in certain contexts).
+	if len(token) == 1 {
+		return Action{Kind: Literal, Sequence: token, Label: token}, nil
 	}
 
-	return Action{Kind: Literal, Sequence: token, Label: token}, nil
+	return Action{}, fmt.Errorf("unrecognized token %q: use backticks for literal text (`%s`), or check key name spelling", token, token)
 }
 
 func parseWait(token string) (int, bool, error) {
@@ -121,40 +129,6 @@ func parseClick(token string) (string, bool, error) {
 	return fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", col, row, col, row), true, nil
 }
 
-func looksLikeKey(token string) bool {
-	if rest, ok := modifierRest(token, "Ctrl"); ok {
-		return isKeyIdentifier(rest)
-	}
-	if rest, ok := modifierRest(token, "Alt"); ok {
-		return startsWithUpperIdentifier(rest)
-	}
-	if rest, ok := modifierRest(token, "Shift"); ok {
-		return isKeyIdentifier(rest)
-	}
-	if hasModifierPrefix(token, "Ctrl") {
-		return true
-	}
-	if hasModifierPrefix(token, "Alt") {
-		return len(token) == len("Alt+") || startsWithUpperIdentifier(token[len("Alt+"):])
-	}
-	if hasModifierPrefix(token, "Shift") {
-		return true
-	}
-	lower := strings.ToLower(token)
-	if isKeyIdentifier(token) {
-		if (strings.HasPrefix(lower, "arrow") && len(token) > len("arrow")) ||
-			(strings.HasPrefix(lower, "cursor") && len(token) > len("cursor")) ||
-			(strings.HasPrefix(lower, "page") && len(token) > len("page")) {
-			return true
-		}
-	}
-	if (strings.HasPrefix(token, "F") || strings.HasPrefix(token, "f")) && len(token) > 1 && allDigits(token[1:]) {
-		return true
-	}
-
-	return false
-}
-
 func modifierRest(token, modifier string) (string, bool) {
 	for _, separator := range []string{"+", "-"} {
 		prefix := modifier + separator
@@ -201,6 +175,7 @@ func splitTokens(script string) ([]string, error) {
 	var tokens []string
 	var current strings.Builder
 	escaping := false
+	inBacktick := false
 
 	for _, r := range script {
 		if escaping {
@@ -213,6 +188,17 @@ func splitTokens(script string) ([]string, error) {
 			}
 			escaping = false
 
+			continue
+		}
+
+		if r == '`' {
+			inBacktick = !inBacktick
+			current.WriteRune(r)
+			continue
+		}
+
+		if inBacktick {
+			current.WriteRune(r)
 			continue
 		}
 
@@ -229,6 +215,9 @@ func splitTokens(script string) ([]string, error) {
 
 	if escaping {
 		return nil, fmt.Errorf("script ends with dangling escape")
+	}
+	if inBacktick {
+		return nil, fmt.Errorf("script has unclosed backtick")
 	}
 
 	tokens = append(tokens, current.String())
