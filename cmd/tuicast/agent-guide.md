@@ -112,7 +112,11 @@ A keystroke script is a **comma-separated** string. Each token is one of:
    session.
 
 3. **Use `--startup-delay`** when the app needs extra init time (large file,
-   network) before you want output captured.
+   network) before you want output captured. **Note:** `--startup-delay` delays
+   *output capture* only — keystroke playback starts independently after the
+   script's first `wait:` token. You do NOT need both `--startup-delay 2000` and
+   `wait:2000` at the start of your script; use one or the other. Use
+   `--startup-delay` to suppress early noise; use `wait:` to pace visible actions.
 
 4. **Wait after UI transitions** — opening a dialog, switching tabs, or loading
    a file needs `wait:500` to `wait:1000` for the UI to settle before the next
@@ -251,7 +255,10 @@ When asked to "record <app> doing X", follow this process:
 
 1. **Read this document** for keystroke syntax and best practices.
 2. **Understand the target app's UI** — what keys does it respond to? What's its
-   quit key? What dialogs does it have?
+   quit key? What dialogs does it have? **Examine the app's source code** if
+   available — look at View composition, tab order, key bindings, and control
+   types (e.g. DateEditor, ColorPicker) to determine what keystrokes each control
+   accepts.
 3. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
 4. **Compose the keystroke string** — use waits generously between transitions.
@@ -284,3 +291,30 @@ The binary is typically at:
 
 Common Terminal.Gui keys: `Ctrl+A` (About), `Ctrl+Q` (Quit), `Alt+F` (File
 menu), `F9` (Menu bar focus), `Esc` (close dialog/cancel).
+
+### Common text-editing keys
+
+- `Home` — move cursor to start of field (use before typing to overwrite)
+- `End` — move cursor to end of field
+- `Ctrl+A` — select all (in text fields; note: also opens About in UICatalog)
+- `Delete` / `Backspace` — delete character
+- `Tab` / `Shift+Tab` — move between controls
+
+### Terminal.Gui control keystroke recipes
+
+**DateEditor / DatePicker** — formatted fields auto-skip separators. Type digits
+only (not slashes). For Sept 10, 1966 in MM/dd/yyyy format: `Home,09101966`.
+
+**ColorPicker** — Tab between H/S/V sliders, use `CursorUp`/`CursorDown` to
+adjust values.
+
+**FileDialog** — type the path directly into the text field, then `Enter`.
+
+**ListView / TableView** — `CursorUp`/`CursorDown` to navigate, `Enter` to
+select.
+
+### Notes on cast output noise
+
+Terminal.Gui apps may emit ConfigurationManager warnings or other stderr output
+on exit. This is normal and appears in the `.cast` file after the app closes.
+It doesn't affect the GIF (the recording stops at process exit).
