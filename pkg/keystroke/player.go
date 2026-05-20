@@ -19,6 +19,7 @@ type Player struct {
 	writer         io.Writer
 	sleeper        Sleeper
 	keystrokeDelay time.Duration
+	kittyKeyboard  bool
 	log            io.Writer
 }
 
@@ -29,6 +30,15 @@ type PlayerOption func(*Player)
 func WithLogWriter(writer io.Writer) PlayerOption {
 	return func(player *Player) {
 		player.log = writer
+	}
+}
+
+// WithKittyKeyboard enables Kitty keyboard protocol encoding.
+// When enabled, all keystrokes are emitted as CSI u sequences
+// providing full modifier disambiguation.
+func WithKittyKeyboard() PlayerOption {
+	return func(player *Player) {
+		player.kittyKeyboard = true
 	}
 }
 
@@ -78,8 +88,14 @@ func (p Player) playAction(action Action) error {
 		p.logf("wait %s (%s)\n", actionName(action), action.Delay)
 		p.sleeper.Sleep(action.Delay)
 	case Write:
-		p.logf("key %s -> %s; delay %s\n", actionName(action), strconv.Quote(action.Sequence), p.keystrokeDelay)
-		if err := p.write(action.Sequence); err != nil {
+		sequence := action.Sequence
+		if p.kittyKeyboard {
+			if resolved, ok := resolveKittyKey(action.Label); ok {
+				sequence = resolved
+			}
+		}
+		p.logf("key %s -> %s; delay %s\n", actionName(action), strconv.Quote(sequence), p.keystrokeDelay)
+		if err := p.write(sequence); err != nil {
 			return err
 		}
 		p.sleeper.Sleep(p.keystrokeDelay)
@@ -101,8 +117,12 @@ func (p Player) writeLiteral(value string) error {
 		}
 		first = false
 
+		char := string(r)
+		if p.kittyKeyboard {
+			char = kittyCsiU(int(r), 0)
+		}
 		p.logf("literal %s\n", strconv.QuoteRune(r))
-		if err := p.write(string(r)); err != nil {
+		if err := p.write(char); err != nil {
 			return err
 		}
 	}

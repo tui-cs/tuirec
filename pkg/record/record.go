@@ -54,6 +54,7 @@ type Config struct {
 	CommandHold    time.Duration
 	MaxDuration    time.Duration
 	DrainDuration  time.Duration
+	KittyKeyboard  bool
 	Clock          recorder.Clock
 	Timestamp      time.Time
 	GIF            gif.Config
@@ -142,7 +143,11 @@ func Run(parent context.Context, config Config) (Result, error) {
 	go waitSession(ctx, session, waitDone)
 
 	readDone := make(chan error, 1)
-	go copyPTY(session, castRecorder, readDone)
+	var ptyReader io.Reader = session
+	if config.KittyKeyboard {
+		ptyReader = newKittyInterceptor(session, session)
+	}
+	go copyPTY(ptyReader, castRecorder, readDone)
 
 	if err := waitWithLog(ctx, config.StartupDelay, config.Clock, config, "startup delay"); err != nil {
 		return Result{}, err
@@ -287,6 +292,9 @@ func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.A
 	options := []keystroke.PlayerOption{}
 	if config.Verbose && config.LogWriter != nil {
 		options = append(options, keystroke.WithLogWriter(config.LogWriter))
+	}
+	if config.KittyKeyboard {
+		options = append(options, keystroke.WithKittyKeyboard())
 	}
 
 	player := keystroke.NewPlayer(
