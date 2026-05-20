@@ -85,6 +85,51 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   cast to see the final printed output). Post-exit terminal noise (stderr from
   ConfigurationManager, shell prompt redraws) is normal during `--drain` — filter
   accordingly when validating.
+- **Key-name collisions with literal words** — bare tokens like `delete`, `home`,
+  `end`, `space`, `tab` resolve as **key presses**, not literal text. If you mean
+  to type those words as text, you must backtick-quote them: `` `delete` ``,
+  `` `home` ``, `` `end` ``, `` `space` ``, `` `tab` ``. The parser is
+  case-insensitive for key resolution, so `Delete` and `delete` both send the
+  Delete key.
+
+### PowerShell escaping
+
+In PowerShell, the backtick (`` ` ``) is the escape character. When your
+keystroke string contains backtick-quoted literals, you must **double the
+backticks** inside PowerShell strings:
+
+```powershell
+# WRONG — PowerShell eats the backticks:
+--keystrokes "wait:1000,`switch`,Enter"
+
+# RIGHT — doubled backticks survive PowerShell interpolation:
+--keystrokes "wait:1000,``switch``,Enter"
+
+# ALSO RIGHT — use a variable (single-quoted string preserves backticks):
+$ks = 'wait:1000,`switch`,Enter'
+tuicast record --keystrokes $ks ...
+```
+
+**Best practice for agents:** Assign the keystroke string to a `$ks` variable
+using **single quotes** (no interpolation), then pass `--keystrokes $ks`.
+
+### Sandbox / permission-denied workaround
+
+If running inside a restricted agent sandbox that blocks PTY-spawning commands:
+1. Write the full `tuicast record` command to a `.ps1` script file.
+2. Execute the script with `& .\record-demo.ps1`.
+3. If that also fails, output the full command for the user to run manually.
+
+### Common mistakes
+
+| Mistake | Symptom | Fix |
+|---|---|---|
+| Forgetting `--kitty-keyboard` | Ctrl+M sends Enter, Ctrl+I sends Tab | Add `--kitty-keyboard` for Terminal.Gui apps |
+| PowerShell eating backtick literals | Literal text silently becomes empty | Use single-quoted `$ks` variable or double backticks |
+| Using `--startup-delay 2000` AND `wait:2000` | ~4s of blank GIF | Use one or the other, not both |
+| Not using `--verbosity high` on first attempt | Can't tell if keys were sent | Always use `--verbosity high` initially |
+| Bare `delete`/`home`/`end`/`space` as literal | Sends key press instead of text | Wrap in backticks: `` `delete` `` |
+| Relative `--binary` path on Windows | Go security error | Use absolute path or `./` prefix |
 
 ---
 
@@ -121,10 +166,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 8. **Use `--verbosity high`** when debugging a keystroke script that isn't
    working as expected — it logs each key token and timing to stderr.
 
-9. **Use `--kitty-keyboard` for Terminal.Gui apps** — this enables the Kitty
-   keyboard protocol, which disambiguates Ctrl+M from Enter, Ctrl+I from
-   Tab, etc. The app must support progressive enhancement (Terminal.Gui v2
-   does). Without this flag, those key pairs produce identical bytes.
+9. **⚠️ Use `--kitty-keyboard` for Terminal.Gui apps** — **Critical for Ctrl+M
+   and Ctrl+I.** Without this flag, Ctrl+M is indistinguishable from Enter, and
+   Ctrl+I from Tab. Terminal.Gui v2 supports progressive enhancement via the
+   Kitty keyboard protocol. Always include this flag for any Terminal.Gui app.
 
 10. **Use `--drain 2000` for TUI apps** — after the last keystroke, keep
     recording for 2 seconds so the final UI state is visible in the GIF.
