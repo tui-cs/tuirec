@@ -71,7 +71,12 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   token gets the inter-key delay (default 200ms). For fast typing sequences,
   use `--keystroke-delay 50` or shorter.
 - **If `record-app.ps1` is blocked** by execution policy or permissions, fall
-  back to calling `tuicast.exe record` directly with equivalent flags.
+  back to calling `tuicast.exe record` directly with equivalent flags. If
+  PowerShell's `&` call operator is also blocked, wrap in `cmd /c`:
+  `cmd /c "tuicast.exe record --binary ... 2>err.txt"`
+- **First frame may be blank** — `--startup-delay` records the alt-screen
+  transition as the initial frame. The actual UI appears after the delay. This
+  is normal; the blank frame is brief in the GIF.
 
 ---
 
@@ -136,6 +141,15 @@ wait:2000,Ctrl+H,wait:500,hello,Tab,world,Alt+A,wait:1500,Esc,wait:500,Esc
 ```
 wait:2000,Alt+F,wait:400,O,wait:600,./myfile.txt,Enter,wait:2000,Esc
 ```
+
+### Search with literal text that matches key prefixes
+
+```
+wait:2000,Ctrl+F,wait:500,cur,sor,Enter,wait:1500,Esc
+```
+
+Note: `cursor` must be split as `cur,sor` because the parser treats it as a
+key-like prefix (see Known gotchas). Same applies to `page` → `pa,ge`.
 
 ### Mouse click demo
 
