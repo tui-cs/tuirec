@@ -14,7 +14,7 @@ go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
 Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuicast`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. `go install` and local `go build` produce only `tuicast`; install `agg` on your PATH or pass `--agg-path` unless you are using a release archive.
+**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuicast/agg-v1.5.0/` on Unix, `%LOCALAPPDATA%\tuicast\agg-v1.5.0\` on Windows). You can also pass `--agg-path` explicitly.
 
 ## Build and Run Locally on Windows
 
@@ -72,7 +72,7 @@ To run the real CLI against the bundled test TUI and open the result:
 go run .\cmd\tuicast record `
   --binary go `
   --args run,.\internal\testapp `
-  --keystrokes "wait:1000,ArrowRight,ArrowDown,Hi,wait:500,Ctrl+Q" `
+  --keystrokes "wait:1000,ArrowRight,ArrowDown,`Hi`,wait:500,Ctrl+Q" `
   --output .\cli-demo.gif `
   --cast-output .\cli-demo.cast
 Invoke-Item .\cli-demo.gif
@@ -80,29 +80,43 @@ Invoke-Item .\cli-demo.gif
 
 ## Usage
 
-v1 CLI usage:
-
 ```sh
 tuicast record \
   --binary ./myapp \
+  --name "demo" \
   --show-command '$ myapp foo.cs' \
-  --startup-delay 1000 \
-  --input-delay 500 \
-  --keystrokes "wait:2000,Tab,Enter,wait:1000,Ctrl+C" \
-  --output demo.gif
+  --keystrokes "wait:2000,Tab,Enter,wait:1000,`search term`,wait:500,Ctrl+C" \
+  --kitty-keyboard \
+  --drain 2000 \
+  --open --copy
 ```
+
+`--name` sets output to `artifacts/<name>.gif` and `artifacts/<name>.cast`
+automatically. `--open` launches the GIF in the default viewer; `--copy` puts
+the GIF path on the clipboard.
 
 Use `--show-command` to add a synthetic shell prompt/command pre-roll to the
 GIF before the target app starts. `--startup-delay` waits after the target
-starts before copying its output and playing input, and `--input-delay` adds a
-default pause before the scripted keys begin. For troubleshooting,
+starts before copying its output and playing input. `--drain` keeps recording
+after the last keystroke so the final UI state is visible. For troubleshooting,
 `--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
 
-Key tokens use Terminal.Gui's persisted `Key.ToString()` / `Key.TryParse()`
-format. `Ctrl+C`, `Ctrl-C`, `A-Ctrl`, `Shift+Tab`, `Ctrl+Alt+Shift+CursorUp`,
-`Esc`, `Enter`, `Delete`, and `F1` all work. Older aliases such as `ArrowUp`
-and `Escape` are also accepted. Unknown key-like tokens such as `Ctrl-Foo`
-fail fast instead of being typed as literal text.
+### Keystroke syntax
+
+Tokens are comma-separated. Each token is one of:
+
+| Token | Example | Description |
+|---|---|---|
+| Named key | `Enter`, `Esc`, `Tab`, `Delete` | Special key press |
+| Navigation | `CursorUp`, `PageDown`, `Home`, `End` | Arrow/nav keys |
+| Modifier combo | `Ctrl+C`, `Alt+A`, `Shift+Tab` | Modifier + key |
+| Wait | `wait:2000` | Pause N milliseconds |
+| Literal text | `` `hello world` `` | Backtick-quoted, typed char-by-char |
+| Mouse click | `click:10:5` | SGR click at col:row |
+
+Key names use Terminal.Gui's `Key.ToString()` / `Key.TryParse()` format.
+Multi-character literal text **must** be backtick-quoted. Single characters
+work without quoting. Unknown bare tokens produce a clear error with guidance.
 
 ## Status
 
