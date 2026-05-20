@@ -4,6 +4,8 @@
 
 Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools.
 
+![TUIcast demo — recording UICatalog](artifacts/hero.gif)
+
 ## Install
 
 ```sh
