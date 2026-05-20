@@ -126,3 +126,21 @@ func TestParseLiteralThatStartsWithKeyPrefix(t *testing.T) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
 }
+
+func TestParseBareNavigationPrefixIsLiteral(t *testing.T) {
+t.Parallel()
+
+actions, err := Parse("cursor,page,arrow")
+if err != nil {
+t.Fatalf("Parse: %v", err)
+}
+
+want := []Action{
+{Kind: Literal, Sequence: "cursor", Label: "cursor"},
+{Kind: Literal, Sequence: "page", Label: "page"},
+{Kind: Literal, Sequence: "arrow", Label: "arrow"},
+}
+if !reflect.DeepEqual(actions, want) {
+t.Fatalf("Parse() = %#v, want %#v", actions, want)
+}
+}

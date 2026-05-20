@@ -19,7 +19,7 @@ const (
 	defaultTheme      = "monokai"
 	defaultSpeed      = 1.0
 	defaultFontSize   = 14
-	defaultLineHeight = 1.0
+	defaultLineHeight = 1.3
 )
 
 // ErrValidation indicates that a rendered GIF failed validation.

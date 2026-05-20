@@ -47,6 +47,18 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   open, file load, menu animation). **Always wait after opening a dialog or
   menu.**
 
+### Known gotchas
+
+- **`cursor`, `page`, `arrow` as literal text** — the parser treats these as
+  key-like prefixes (matching `CursorUp`, `PageDown`, etc.). If you need to
+  type them literally, split across token boundaries: `cur,sor` types "cursor",
+  `pa,ge` types "page". This is a parser heuristic, not a bug.
+- **`--agg-path` is required** unless `agg` is on your system PATH. Typical
+  location: `~/tools/agg.exe` (Windows) or `~/tools/agg` (Unix).
+- **`--show-command` with alt-screen apps** — works correctly (pre-roll enters
+  alt-screen automatically), but the synthetic prompt frame will be brief. Omit
+  it if the app's own UI is the focus.
+
 ---
 
 ## Composing keystroke scripts — best practices
@@ -132,6 +144,7 @@ tuicast record \
     --show-command '$ my-app' \
     --startup-delay 500 \
     --kitty-keyboard \
+    --agg-path ~/tools/agg \
     --cols 120 \
     --rows 36 \
     --max-duration 45
@@ -182,9 +195,27 @@ When asked to "record <app> doing X", follow this process:
 3. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
 4. **Compose the keystroke string** — use waits generously between transitions.
-5. **Call `record-app.ps1`** (or `tuicast record`) with appropriate parameters.
-6. **Report the output paths** back to the user.
+5. **Call `tuicast record`** (or `record-app.ps1`) with appropriate parameters.
+6. **If execution fails due to permissions**, output the full command for the user
+   to run manually — do not loop retrying.
+7. **Report the output paths** back to the user.
 
 You do NOT need to know the exact pixel layout — TUIcast drives the app through
 its terminal input, just like a user would type. Focus on the logical key
 sequence to accomplish the demo goal.
+
+### Terminal.Gui app defaults
+
+For any Terminal.Gui application (UICatalog, ted, etc.), always use:
+
+```powershell
+--kitty-keyboard --startup-delay 2000 --drain 2000 --cols 120 --rows 30
+```
+
+The binary is typically at:
+```
+<repo>\Examples\<AppName>\bin\Debug\net10.0\<AppName>.exe
+```
+
+Common Terminal.Gui keys: `Ctrl+A` (About), `Ctrl+Q` (Quit), `Alt+F` (File
+menu), `F9` (Menu bar focus), `Esc` (close dialog/cancel).

@@ -42,7 +42,7 @@ func TestRenderArgsDefaults(t *testing.T) {
 		"--theme", "monokai",
 		"--speed", "1",
 		"--font-size", "14",
-		"--line-height", "1",
+		"--line-height", "1.3",
 		"in.cast", "out.gif",
 	}
 
@@ -59,7 +59,7 @@ func TestRenderArgsIncludesFontWhenSet(t *testing.T) {
 		"--theme", "monokai",
 		"--speed", "1",
 		"--font-size", "14",
-		"--line-height", "1",
+		"--line-height", "1.3",
 		"--font-family", "Cascadia Mono",
 		"in.cast", "out.gif",
 	}
@@ -77,7 +77,7 @@ func TestRenderArgsIncludesLetterSpacingWhenSet(t *testing.T) {
 		"--theme", "monokai",
 		"--speed", "1",
 		"--font-size", "14",
-		"--line-height", "1",
+		"--line-height", "1.3",
 		"--letter-spacing", "-0.5",
 		"in.cast", "out.gif",
 	}
