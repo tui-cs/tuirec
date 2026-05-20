@@ -55,6 +55,7 @@ type recordFlags struct {
 	showCommandHoldMS  int
 	maxDurationSec     int
 	drainMS            int
+	kittyKeyboard      bool
 	verbosity          string
 }
 
@@ -176,6 +177,7 @@ pacing to stderr.`,
 	cmd.Flags().StringVar(&flags.config.GIF.AggPath, "agg-path", flags.config.GIF.AggPath, "Path to agg binary")
 	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
 	cmd.Flags().StringVar(&flags.verbosity, "verbosity", flags.verbosity, "Output verbosity: quiet, normal, or high")
+	cmd.Flags().BoolVar(&flags.kittyKeyboard, "kitty-keyboard", false, "Enable Kitty keyboard protocol: encode keystrokes as CSI u and respond to app mode queries")
 
 	return cmd
 }
@@ -230,6 +232,7 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	config.CommandHold = time.Duration(flags.showCommandHoldMS) * time.Millisecond
 	config.MaxDuration = time.Duration(flags.maxDurationSec) * time.Second
 	config.DrainDuration = time.Duration(flags.drainMS) * time.Millisecond
+	config.KittyKeyboard = flags.kittyKeyboard
 	config.Verbose = flags.verbosity == "high"
 	config.LogWriter = options.stderr
 
