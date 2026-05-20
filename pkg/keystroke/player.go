@@ -33,6 +33,7 @@ func WithLogWriter(writer io.Writer) PlayerOption {
 }
 
 // NewPlayer creates a keystroke player.
+// writer must not be nil; passing nil will cause Play/PlayActions to return an error.
 func NewPlayer(writer io.Writer, sleeper Sleeper, keystrokeDelay time.Duration, options ...PlayerOption) Player {
 	if sleeper == nil {
 		sleeper = realSleeper{}
@@ -144,6 +145,10 @@ func (kind Kind) String() string {
 }
 
 func (p Player) write(value string) error {
+	if p.writer == nil {
+		return fmt.Errorf("write keystroke: nil writer")
+	}
+
 	_, err := io.WriteString(p.writer, value)
 	if err != nil {
 		return fmt.Errorf("write keystroke: %w", err)

@@ -141,12 +141,12 @@ func Run(parent context.Context, config Config) (Result, error) {
 	waitDone := make(chan error, 1)
 	go waitSession(ctx, session, waitDone)
 
+	readDone := make(chan error, 1)
+	go copyPTY(session, castRecorder, readDone)
+
 	if err := waitWithLog(ctx, config.StartupDelay, config.Clock, config, "startup delay"); err != nil {
 		return Result{}, err
 	}
-
-	readDone := make(chan error, 1)
-	go copyPTY(session, castRecorder, readDone)
 
 	playerDone := make(chan error, 1)
 	go playKeystrokes(ctx, session, actions, config, playerDone)

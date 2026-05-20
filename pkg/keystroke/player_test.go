@@ -84,6 +84,21 @@ func TestPlayerLogsActionsAndPacing(t *testing.T) {
 	}
 }
 
+func TestPlayerNilWriterReturnsError(t *testing.T) {
+	t.Parallel()
+
+	player := NewPlayer(nil, &recordingSleeper{}, 10*time.Millisecond)
+
+	err := player.Play("A")
+	if err == nil {
+		t.Fatal("expected error for nil writer, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "nil writer") {
+		t.Fatalf("error = %q, want it to mention nil writer", err.Error())
+	}
+}
+
 type recordingSleeper struct {
 	sleeps []time.Duration
 }
