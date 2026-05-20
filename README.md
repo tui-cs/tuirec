@@ -107,3 +107,20 @@ fail fast instead of being typed as literal text.
 ## Status
 
 🚧 **Pre-alpha** — rewriting from Node.js prototype to Go. See [spec.md](spec.md) for the v1 plan.
+
+## For AI Agents
+
+TUIcast is designed to be driven by AI coding agents. Run:
+
+```sh
+tuicast agent-guide
+```
+
+This prints the full keystroke syntax reference, best practices, and examples.
+AI agents can use this output to compose keystroke scripts and invoke recordings
+without any prior knowledge of the tool.
+
+If TUIcast is not installed, download it from
+[GitHub Releases](https://github.com/gui-cs/TUIcast/releases) — archives
+include both `tuicast` and `agg`. See [`llms.txt`](llms.txt) for a
+machine-readable project summary.

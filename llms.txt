@@ -1,0 +1,57 @@
+# TUIcast
+
+> Cross-platform CLI that records any terminal app and produces an animated GIF.
+
+TUIcast spawns a target binary in a PTY, injects scripted keystrokes, captures
+all terminal output as an asciinema v2 cast, then renders an animated GIF via
+agg. No manual screen recording, no browser-based tools.
+
+## Install
+
+Download a release archive from https://github.com/gui-cs/TUIcast/releases
+(includes tuicast + agg). Or: `go install github.com/gui-cs/TUIcast/cmd/tuicast@latest`
+and install agg separately (https://github.com/asciinema/agg).
+
+## Quick start
+
+```sh
+tuicast record \
+    --binary ./my-app \
+    --keystrokes "wait:2000,Hello world,wait:1500,Esc" \
+    --output demo.gif
+```
+
+## AI Agent usage
+
+Run `tuicast agent-guide` to get the full keystroke syntax reference,
+best practices, and examples for AI-driven recordings.
+
+The guide covers:
+- Keystroke script syntax (wait:N, named keys, modifiers, literal text, mouse)
+- Terminal.Gui app defaults (--kitty-keyboard, --startup-delay, etc.)
+- Known gotchas (cursor/page/arrow literal splitting, --agg-path requirement)
+- Composing demo recordings step by step
+
+## Key flags
+
+| Flag | Description |
+|------|-------------|
+| --binary | Path to executable to record |
+| --keystrokes | Comma-separated script (wait:N, key names, literal text) |
+| --output | Output GIF path |
+| --cast-output | Also save raw .cast file |
+| --show-command | Synthetic shell prompt pre-roll |
+| --startup-delay | Ms to wait before capturing output |
+| --kitty-keyboard | Enable Kitty protocol (disambiguates Ctrl+M/Enter etc.) |
+| --agg-path | Path to agg binary (if not on PATH) |
+| --verbosity | quiet, normal, or high |
+| --cols / --rows | Terminal dimensions |
+| --line-height | Line-height multiplier (default 1.3) |
+| --font | Font family for GIF rendering |
+
+## Links
+
+- Repository: https://github.com/gui-cs/TUIcast
+- Releases: https://github.com/gui-cs/TUIcast/releases
+- Agent guide (in-repo): agent/RECORDING-AGENT.md
+- Spec: spec.md

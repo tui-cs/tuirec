@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,11 @@ import (
 	"github.com/gui-cs/TUIcast/pkg/record"
 	"github.com/spf13/cobra"
 )
+
+//go:generate cp ../../agent/RECORDING-AGENT.md agent-guide.md
+
+//go:embed agent-guide.md
+var agentGuide string
 
 const (
 	exitSuccess = iota
@@ -117,6 +123,7 @@ func newRootCommand(options cliOptions) *cobra.Command {
 	root.SetVersionTemplate("tuicast {{.Version}}\n")
 	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
 	root.AddCommand(newRecordCommand(options))
+	root.AddCommand(newAgentGuideCommand(options))
 
 	return root
 }
@@ -182,6 +189,19 @@ pacing to stderr.`,
 	return cmd
 }
 
+func newAgentGuideCommand(options cliOptions) *cobra.Command {
+	return &cobra.Command{
+		Use:   "agent-guide",
+		Short: "Print the AI agent recording guide to stdout",
+		Long:  "Prints the full TUIcast recording agent guide (keystroke syntax, best practices, examples) for use by AI coding agents.",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			fmt.Fprint(options.stdout, agentGuide)
+			return nil
+		},
+	}
+}
+
 func defaultRecordFlags() *recordFlags {
 	return &recordFlags{
 		config: record.Config{
@@ -193,7 +213,7 @@ func defaultRecordFlags() *recordFlags {
 				Theme:      "monokai",
 				Speed:      1.0,
 				FontSize:   14,
-				LineHeight: 1.0,
+				LineHeight: 1.3,
 			},
 		},
 		keystrokeDelayMS:   200,
