@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/gif"
-	"github.com/gui-cs/TUIcast/pkg/keystroke"
-	"github.com/gui-cs/TUIcast/pkg/pty"
-	"github.com/gui-cs/TUIcast/pkg/record"
+	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/keystroke"
+	"github.com/gui-cs/tuirec/pkg/pty"
+	"github.com/gui-cs/tuirec/pkg/record"
 	"github.com/spf13/cobra"
 )
 
@@ -138,9 +138,9 @@ func normalizeOptions(options cliOptions) cliOptions {
 
 func newRootCommand(options cliOptions) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "tuicast",
+		Use:           "tuirec",
 		Short:         "Record terminal apps and produce animated GIFs",
-		Long:          "TUIcast records terminal application sessions and renders them as animated GIFs.",
+		Long:          "tuirec records terminal application sessions and renders them as animated GIFs.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -150,7 +150,7 @@ func newRootCommand(options cliOptions) *cobra.Command {
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return usageError(err)
 	})
-	root.SetVersionTemplate("tuicast {{.Version}}\n")
+	root.SetVersionTemplate("tuirec {{.Version}}\n")
 	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
 	root.AddCommand(newRecordCommand(options))
 	root.AddCommand(newAgentGuideCommand(options))
@@ -228,7 +228,7 @@ func newAgentGuideCommand(options cliOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "agent-guide",
 		Short: "Print the AI agent recording guide to stdout",
-		Long:  "Prints the full TUIcast recording agent guide (keystroke syntax, best practices, examples) for use by AI coding agents.",
+		Long:  "Prints the full tuirec recording agent guide (keystroke syntax, best practices, examples) for use by AI coding agents.",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			fmt.Fprint(options.stdout, agentGuide)
@@ -340,7 +340,7 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 
 	cleanupCast := false
 	if config.CastOutput == "" {
-		castFile, err := os.CreateTemp("", "tuicast-*.cast")
+		castFile, err := os.CreateTemp("", "tuirec-*.cast")
 		if err != nil {
 			return err
 		}

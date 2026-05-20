@@ -4,11 +4,11 @@ This file provides guidance to AI coding agents (Claude Code, GitHub Copilot, Op
 
 ## Project Status
 
-Pre-alpha. Rewriting from a Node.js/TypeScript prototype to Go. The prototype (on branch `copilot/add-tui-gif-generation-feature`) proved the pipeline works: PTY → asciinema v2 cast → agg GIF. The Go rewrite starts fresh on `main`. See [spec.md](spec.md) for the v1 plan, requirements, and architecture.
+Pre-alpha. Rewriting from a Node.js/TypeScript prototype to Go. The prototype (on branch `copilot/add-tui-gif-generation-feature`) proved the pipeline works: PTY â†’ asciinema v2 cast â†’ agg GIF. The Go rewrite starts fresh on `main`. See [spec.md](spec.md) for the v1 plan, requirements, and architecture.
 
 ## What This Project Does
 
-TUIcast is a cross-platform CLI that records any terminal application and produces an animated GIF. You give it a binary and a keystroke script; it spawns the app in a PTY, injects the keystrokes, records all terminal output as an asciinema v2 cast file, then invokes `agg` to render an animated GIF.
+tuirec is a cross-platform CLI that records any terminal application and produces an animated GIF. You give it a binary and a keystroke script; it spawns the app in a PTY, injects the keystrokes, records all terminal output as an asciinema v2 cast file, then invokes `agg` to render an animated GIF.
 
 ## Branch Workflow
 
@@ -42,9 +42,9 @@ CI runs `golangci-lint` and `go vet`. Code must pass both before merge.
 
 ## CI/CD
 
-- **`.github/workflows/ci.yml`** — runs on every push/PR to `main`. Builds, tests (unit + integration), vets, and lints across Linux, macOS, Windows.
-- **`.github/workflows/release.yml`** — triggered by `v*` tag push. Uses GoReleaser to cross-compile and publish to GitHub Releases, Homebrew tap, and Scoop bucket.
-- **`.goreleaser.yaml`** — GoReleaser config. Builds `CGO_ENABLED=0` static binaries for linux/darwin/windows × amd64/arm64.
+- **`.github/workflows/ci.yml`** â€” runs on every push/PR to `main`. Builds, tests (unit + integration), vets, and lints across Linux, macOS, Windows.
+- **`.github/workflows/release.yml`** â€” triggered by `v*` tag push. Uses GoReleaser to cross-compile and publish to GitHub Releases, Homebrew tap, and Scoop bucket.
+- **`.goreleaser.yaml`** â€” GoReleaser config. Builds `CGO_ENABLED=0` static binaries for linux/darwin/windows Ã— amd64/arm64.
 
 ### Releasing
 
@@ -61,7 +61,7 @@ Single binary CLI. Module structure:
 
 ```
 cmd/
-  tuicast/
+  tuirec/
     main.go             # Entry point, CLI parsing (cobra)
 pkg/
   pty/
@@ -72,7 +72,7 @@ pkg/
     cast.go             # asciinema v2 cast writer
   keystroke/
     player.go           # Parse + execute keystroke script
-    keymap.go           # Named key → escape sequence mapping
+    keymap.go           # Named key â†’ escape sequence mapping
   gif/
     renderer.go         # Invoke agg, validate output
   record/
@@ -80,11 +80,11 @@ pkg/
 ```
 
 The boundary between packages matters:
-- `pkg/pty` — only PTY lifecycle (spawn, read, write, resize, close)
-- `pkg/recorder` — only cast file I/O (no PTY knowledge)
-- `pkg/keystroke` — only script parsing and key mapping (no PTY knowledge)
-- `pkg/gif` — only agg invocation (no PTY or recorder knowledge)
-- `pkg/record` — orchestration; the only package that imports all others
+- `pkg/pty` â€” only PTY lifecycle (spawn, read, write, resize, close)
+- `pkg/recorder` â€” only cast file I/O (no PTY knowledge)
+- `pkg/keystroke` â€” only script parsing and key mapping (no PTY knowledge)
+- `pkg/gif` â€” only agg invocation (no PTY or recorder knowledge)
+- `pkg/record` â€” orchestration; the only package that imports all others
 
 ## Coding Standards
 
@@ -163,9 +163,9 @@ func TestKeyMap(t *testing.T) {
 ### Integration Tests
 
 Spawning a real PTY/ConPTY or an in-repo helper process is **not** by
-itself integration — if the test is fast and self-contained it stays an
+itself integration â€” if the test is fast and self-contained it stays an
 untagged unit test (see constitution R5). The `integration` tag is
-reserved for tests that require `agg` or exercise the full cast→GIF
+reserved for tests that require `agg` or exercise the full castâ†’GIF
 pipeline, plus any test driving an external target app:
 
 ```go
@@ -193,14 +193,14 @@ Don't accidentally pursue these:
 - Docker images
 - Binary upload / GitHub repo source resolution
 - xterm.js / headless VT parsing
-- Video output (MP4, WebM) — GIF only
+- Video output (MP4, WebM) â€” GIF only
 
 ## Open Decisions
 
-See `spec.md` § "Key Risks" for known unknowns. Key open questions:
+See `spec.md` Â§ "Key Risks" for known unknowns. Key open questions:
 
-1. ~~Windows ConPTY library choice~~ — **Resolved:** `github.com/UserExistsError/conpty` (the earlier-referenced `iamacarpet/go-conpty` does not exist). Proven by the Phase 1 spike (PR #3). Windows is folded back into Phase 1.
-2. ~~Whether to bundle `agg` or require it~~ — **Resolved:** require it; pin `agg v1.5.0` (see `spec.md` Decisions). Bundling deferred post-v1.
+1. ~~Windows ConPTY library choice~~ â€” **Resolved:** `github.com/UserExistsError/conpty` (the earlier-referenced `iamacarpet/go-conpty` does not exist). Proven by the Phase 1 spike (PR #3). Windows is folded back into Phase 1.
+2. ~~Whether to bundle `agg` or require it~~ â€” **Resolved:** require it; pin `agg v1.5.0` (see `spec.md` Decisions). Bundling deferred post-v1.
 3. Mouse event encoding format (currently `click:col:row` from prototype)
 
 If a task touches one of these, surface the decision rather than picking unilaterally.

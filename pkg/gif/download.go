@@ -14,7 +14,7 @@ const (
 	// DefaultAggVersion is the agg release version downloaded when auto-fetching.
 	DefaultAggVersion = "v1.5.0"
 
-	aggCacheDirName = "tuicast"
+	aggCacheDirName = "tuirec"
 )
 
 // ErrDownload indicates that automatic agg download failed.
@@ -79,7 +79,7 @@ func downloadAggWith(client *http.Client) (string, error) {
 
 	outputPath := filepath.Join(cacheDir, aggOutputName())
 
-	// Already cached — skip download.
+	// Already cached â€” skip download.
 	if _, err := os.Stat(outputPath); err == nil {
 		return outputPath, nil
 	}

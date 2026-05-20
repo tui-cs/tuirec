@@ -8,10 +8,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gui-cs/TUIcast/examples/internal/demoagg"
-	"github.com/gui-cs/TUIcast/pkg/gif"
-	"github.com/gui-cs/TUIcast/pkg/pty"
-	"github.com/gui-cs/TUIcast/pkg/record"
+	"github.com/gui-cs/tuirec/examples/internal/demoagg"
+	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/pty"
+	"github.com/gui-cs/tuirec/pkg/record"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 		Args:           []string{"run", "./internal/testapp"},
 		CastOutput:     *castPath,
 		Output:         *outputPath,
-		Title:          "TUIcast pipeline demo",
+		Title:          "tuirec pipeline demo",
 		Keystrokes:     "wait:1000,ArrowRight,ArrowDown,Hi,wait:500,Ctrl+Q",
 		KeystrokeDelay: 100 * time.Millisecond,
 		MaxDuration:    20 * time.Second,

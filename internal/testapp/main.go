@@ -14,7 +14,7 @@ func main() {
 	defer restore()
 
 	fmt.Fprint(os.Stdout, "\x1b[2J\x1b[H")
-	fmt.Fprintln(os.Stdout, "TUIcast testapp ready")
+	fmt.Fprintln(os.Stdout, "tuirec testapp ready")
 	fmt.Fprintln(os.Stdout, "Press Ctrl+Q to quit.")
 
 	x := 10

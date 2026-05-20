@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/gif"
-	"github.com/gui-cs/TUIcast/pkg/record"
+	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/record"
 )
 
 func TestRecordCommandParsesFlags(t *testing.T) {
@@ -216,7 +216,7 @@ func TestRecordCommandCastOnlyDoesNotRequireAgg(t *testing.T) {
 func TestDefaultAggPathPrefersSiblingBinary(t *testing.T) {
 	t.Parallel()
 
-	executablePath := filepath.Join("release", "tuicast.exe")
+	executablePath := filepath.Join("release", "tuirec.exe")
 	siblingAgg := filepath.Join("release", "agg.exe")
 	toolsAgg := filepath.Join("tools", "agg.exe")
 
@@ -244,7 +244,7 @@ func TestDefaultAggPathFallsBackToTools(t *testing.T) {
 	toolsAgg := filepath.Join("tools", "agg")
 	got := defaultAggPathFor(
 		func() (string, error) {
-			return filepath.Join("release", "tuicast"), nil
+			return filepath.Join("release", "tuirec"), nil
 		},
 		func(path string) (os.FileInfo, error) {
 			if path == toolsAgg {

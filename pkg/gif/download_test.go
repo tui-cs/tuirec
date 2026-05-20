@@ -47,7 +47,7 @@ func TestDownloadAggUsesCache(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake cached binary to verify short-circuit logic.
-	cacheDir := filepath.Join(t.TempDir(), "tuicast", "agg-"+DefaultAggVersion)
+	cacheDir := filepath.Join(t.TempDir(), "tuirec", "agg-"+DefaultAggVersion)
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

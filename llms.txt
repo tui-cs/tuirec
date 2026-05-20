@@ -1,21 +1,21 @@
-# TUIcast
+# tuirec
 
 > Cross-platform CLI that records any terminal app and produces an animated GIF.
 
-TUIcast spawns a target binary in a PTY, injects scripted keystrokes, captures
+tuirec spawns a target binary in a PTY, injects scripted keystrokes, captures
 all terminal output as an asciinema v2 cast, then renders an animated GIF via
 agg. No manual screen recording, no browser-based tools.
 
 ## Install
 
-Download a release archive from https://github.com/gui-cs/TUIcast/releases
-(includes tuicast + agg). Or: `go install github.com/gui-cs/TUIcast/cmd/tuicast@latest`
+Download a release archive from https://github.com/gui-cs/tuirec/releases
+(includes tuirec + agg). Or: `go install github.com/gui-cs/tuirec/cmd/tuirec@latest`
 and install agg separately (https://github.com/asciinema/agg).
 
 ## Quick start
 
 ```sh
-tuicast record \
+tuirec record \
     --binary ./my-app \
     --keystrokes "wait:2000,Hello world,wait:1500,Esc" \
     --output demo.gif
@@ -23,7 +23,7 @@ tuicast record \
 
 ## AI Agent usage
 
-Run `tuicast agent-guide` to get the full keystroke syntax reference,
+Run `tuirec agent-guide` to get the full keystroke syntax reference,
 best practices, and examples for AI-driven recordings.
 
 The guide covers:
@@ -51,7 +51,7 @@ The guide covers:
 
 ## Links
 
-- Repository: https://github.com/gui-cs/TUIcast
-- Releases: https://github.com/gui-cs/TUIcast/releases
+- Repository: https://github.com/gui-cs/tuirec
+- Releases: https://github.com/gui-cs/tuirec/releases
 - Agent guide (in-repo): agent/RECORDING-AGENT.md
 - Spec: spec.md
