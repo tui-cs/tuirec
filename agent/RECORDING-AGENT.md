@@ -78,6 +78,11 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 8. **Use `--verbosity high`** when debugging a keystroke script that isn't
    working as expected — it logs each key token and timing to stderr.
 
+9. **Use `--kitty-keyboard` for Terminal.Gui apps** — this enables the Kitty
+   keyboard protocol, which disambiguates Ctrl+M from Enter, Ctrl+I from
+   Tab, etc. The app must support progressive enhancement (Terminal.Gui v2
+   does). Without this flag, those key pairs produce identical bytes.
+
 ---
 
 ## Example keystroke scripts
@@ -126,6 +131,7 @@ tuicast record \
     --cast-output demo.cast \
     --show-command '$ my-app' \
     --startup-delay 500 \
+    --kitty-keyboard \
     --cols 120 \
     --rows 36 \
     --max-duration 45
@@ -160,8 +166,9 @@ tuicast record \
 | `-MaxDuration` | No | 60 | Safety timeout (seconds) |
 | `-DrainMs` | No | 1500 | Wait after last keystroke |
 | `-Verbosity` | No | — | `quiet`, `normal`, or `high` |
+| `-KittyKeyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
 | `-Args` | No | — | Arguments to pass to the binary |
-| `-TuicastVersion` | No | `0.1.3` | Auto-download version |
+| `-TuicastVersion` | No | `0.1.5` | Auto-download version |
 
 ---
 
