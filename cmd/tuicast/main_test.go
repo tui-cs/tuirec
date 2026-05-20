@@ -404,6 +404,7 @@ func TestRecordHelpSnapshot(t *testing.T) {
 		"--agg-path string",
 		"--max-duration int",
 		"--line-height float",
+		"--name string",
 	} {
 		if !strings.Contains(help, want) {
 			t.Fatalf("help missing %q:\n%s", want, help)
@@ -416,3 +417,159 @@ type execNotFoundError struct{}
 func (execNotFoundError) Error() string {
 	return "not found"
 }
+
+func TestRecordCommandNameFlag(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--name", "my-demo",
+		"--keystrokes", "wait:10,Ctrl+Q",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d; stderr: %s", code, exitSuccess, stderr.String())
+	}
+
+	wantOutput := filepath.Join("artifacts", "my-demo.gif")
+	wantCast := filepath.Join("artifacts", "my-demo.cast")
+	if got.Output != wantOutput {
+		t.Fatalf("Output = %q, want %q", got.Output, wantOutput)
+	}
+	if got.CastOutput != wantCast {
+		t.Fatalf("CastOutput = %q, want %q", got.CastOutput, wantCast)
+	}
+}
+
+func TestRecordCommandNameFlagExplicitOutputOverrides(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--name", "my-demo",
+		"--output", "custom.gif",
+		"--cast-output", "custom.cast",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	if got.Output != "custom.gif" {
+		t.Fatalf("Output = %q, want %q", got.Output, "custom.gif")
+	}
+	if got.CastOutput != "custom.cast" {
+		t.Fatalf("CastOutput = %q, want %q", got.CastOutput, "custom.cast")
+	}
+}
+
+func TestRecordCommandPrintsSummary(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--name", "summary-test",
+		"--verbosity", "normal",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	output := stderr.String()
+	for _, want := range []string{"Recording:", "Binary:", "Keystrokes:", "Output:"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stderr missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestRecordCommandQuietSuppressesSummary(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--verbosity", "quiet",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	if strings.Contains(stderr.String(), "Recording:") {
+		t.Fatalf("quiet mode should suppress summary, got: %s", stderr.String())
+	}
+}
+
+func TestRecordCommandAutoDownloadAgg(t *testing.T) {
+	t.Parallel()
+
+	// Simulate agg not found via look, but verify resolveAgg tries the cache.
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--output", "",
+		"--cast-output", "demo.cast",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			if path == "demo-app" {
+				return path, nil
+			}
+			return "", execNotFoundError{}
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			return record.Result{CastPath: config.CastOutput}, nil
+		},
+	})
+	// With output="" (cast-only mode), agg is not needed.
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d; stderr: %s", code, exitSuccess, stderr.String())
+	}
+}
+

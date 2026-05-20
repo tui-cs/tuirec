@@ -6,14 +6,17 @@ can use this as context to drive `record-app.ps1` or `tuicast record` directly.
 
 ## Quick start
 
-```powershell
-./agent/record-app.ps1 `
-    -Binary "./my-app" `
-    -Name "search-replace" `
-    -Title "my-app: find and replace" `
-    -ShowCommand '$ my-app config.yaml' `
-    -Keystrokes "wait:2000,Ctrl+H,hello,Tab,world,Alt+A,wait:1500,Esc"
+```bash
+tuicast record \
+    --binary "./my-app" \
+    --name "search-replace" \
+    --title "my-app: find and replace" \
+    --show-command '$ my-app config.yaml' \
+    --keystrokes "wait:2000,Ctrl+H,hello,Tab,world,Alt+A,wait:1500,Esc"
 ```
+
+> **Note:** `tuicast record` auto-downloads `agg` if not found on PATH or in the
+> cache (`~/.cache/tuicast/agg-v1.5.0/`). No separate setup needed.
 
 ---
 
@@ -133,24 +136,29 @@ wait:2000,click:15:3,wait:1000,click:40:10,wait:1500,Esc
 
 ## Invoking the recording
 
-### Direct `tuicast record`
+### Direct `tuicast record` (recommended)
 
 ```bash
 tuicast record \
     --binary ./my-app \
+    --name "demo" \
     --keystrokes "wait:2000,Hello,wait:1500,Esc" \
-    --output demo.gif \
-    --cast-output demo.cast \
     --show-command '$ my-app' \
     --startup-delay 500 \
     --kitty-keyboard \
-    --agg-path ~/tools/agg \
     --cols 120 \
     --rows 36 \
     --max-duration 45
 ```
 
-### Via `record-app.ps1` (auto-resolves tools)
+The `--name` flag sets `--output artifacts/<name>.gif` and `--cast-output
+artifacts/<name>.cast` automatically. You can override either with explicit
+flags. `tuicast` will auto-download `agg` if it's not on PATH.
+
+### Via `record-app.ps1` (deprecated)
+
+> **Deprecated:** Use `tuicast record --name <name>` instead. The script is
+> retained for backward compatibility and will be removed in a future release.
 
 ```powershell
 ./agent/record-app.ps1 `
@@ -165,23 +173,23 @@ tuicast record \
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
-| `-Binary` | **Yes** | — | Path to the target executable |
-| `-Keystrokes` | **Yes** | — | The TUIcast keystroke script |
-| `-Name` | No | `demo` | Short ID for filenames (`<Name>.gif`) |
-| `-Title` | No | `recording` | Title in cast metadata |
-| `-ShowCommand` | No | — | Synthetic shell prompt pre-roll |
-| `-StartupDelay` | No | 0 | Ms to wait after process start before output capture |
-| `-InputDelay` | No | 0 | Ms pause before scripted keys begin |
-| `-Output` | No | `artifacts/<Name>.gif` | GIF path |
-| `-CastOutput` | No | `artifacts/<Name>.cast` | Cast path |
-| `-Cols` | No | 120 | Terminal columns |
-| `-Rows` | No | 36 | Terminal rows |
-| `-MaxDuration` | No | 60 | Safety timeout (seconds) |
-| `-DrainMs` | No | 1500 | Wait after last keystroke |
-| `-Verbosity` | No | — | `quiet`, `normal`, or `high` |
-| `-KittyKeyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
-| `-Args` | No | — | Arguments to pass to the binary |
-| `-TuicastVersion` | No | `0.1.5` | Auto-download version |
+| `--binary` | **Yes** | — | Path to the target executable |
+| `--keystrokes` | **Yes** | — | The TUIcast keystroke script |
+| `--name` | No | — | Short ID for filenames (`artifacts/<name>.gif`) |
+| `--title` | No | — | Title in cast metadata |
+| `--show-command` | No | — | Synthetic shell prompt pre-roll |
+| `--startup-delay` | No | 0 | Ms to wait after process start before output capture |
+| `--input-delay` | No | 0 | Ms pause before scripted keys begin |
+| `--output` | No | `recording.gif` | GIF path (overrides `--name`) |
+| `--cast-output` | No | — | Cast path (overrides `--name`) |
+| `--cols` | No | 120 | Terminal columns |
+| `--rows` | No | 30 | Terminal rows |
+| `--max-duration` | No | 60 | Safety timeout (seconds) |
+| `--drain` | No | 500 | Wait after last keystroke (ms) |
+| `--verbosity` | No | `normal` | `quiet`, `normal`, or `high` |
+| `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
+| `--args` | No | — | Arguments to pass to the binary |
+| `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
 
 ---
 
@@ -195,7 +203,8 @@ When asked to "record <app> doing X", follow this process:
 3. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
 4. **Compose the keystroke string** — use waits generously between transitions.
-5. **Call `tuicast record`** (or `record-app.ps1`) with appropriate parameters.
+5. **Call `tuicast record --name <name>`** with appropriate parameters. The binary
+   auto-downloads agg and creates the artifacts/ directory as needed.
 6. **If execution fails due to permissions**, output the full command for the user
    to run manually — do not loop retrying.
 7. **Report the output paths** back to the user.
