@@ -34,7 +34,7 @@ func TestRecordCommandEndToEndGIF(t *testing.T) {
 	cmd := exec.CommandContext(ctx, tuicast,
 		"record",
 		"--binary", testapp,
-		"--keystrokes", "wait:1000,ArrowRight,ArrowDown,Hi,wait:500,Ctrl+Q",
+		"--keystrokes", "wait:1000,ArrowRight,ArrowDown,`Hi`,wait:500,Ctrl+Q",
 		"--output", output,
 		"--cast-output", castOutput,
 		"--cols", "80",
