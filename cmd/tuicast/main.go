@@ -54,6 +54,9 @@ type cliOptions struct {
 type recordFlags struct {
 	config             record.Config
 	args               []string
+	name               string
+	outputExplicit     bool
+	castOutputExplicit bool
 	keystrokeDelayMS   int
 	inputDelayMS       int
 	startupDelayMS     int
@@ -153,6 +156,8 @@ pacing to stderr.`,
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			flags.outputExplicit = cmd.Flags().Changed("output")
+			flags.castOutputExplicit = cmd.Flags().Changed("cast-output")
 			return runRecord(cmd.Context(), options, flags)
 		},
 	}
@@ -164,6 +169,7 @@ pacing to stderr.`,
 	cmd.Flags().StringSliceVar(&flags.args, "args", nil, "Arguments to pass to the binary")
 	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output GIF path")
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
+	cmd.Flags().StringVar(&flags.name, "name", "", "Short name for the recording; sets --output artifacts/<name>.gif and --cast-output artifacts/<name>.cast unless explicitly set")
 	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, literal text, or Terminal.Gui Key strings")
 	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
 	cmd.Flags().IntVar(&flags.inputDelayMS, "input-delay", flags.inputDelayMS, "Milliseconds to wait before playing the keystroke script")
@@ -256,12 +262,51 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	config.Verbose = flags.verbosity == "high"
 	config.LogWriter = options.stderr
 
+	// Apply --name defaults when explicit paths are not set.
+	if flags.name != "" {
+		if !flags.outputExplicit {
+			config.Output = filepath.Join("artifacts", flags.name+".gif")
+		}
+		if !flags.castOutputExplicit {
+			config.CastOutput = filepath.Join("artifacts", flags.name+".cast")
+		}
+	}
+
 	if config.Output != "" {
-		aggPath, err := options.look(config.GIF.AggPath)
+		aggPath, err := resolveAgg(config.GIF.AggPath, options.look, options.stderr, flags.verbosity)
 		if err != nil {
-			return prerequisiteError(fmt.Errorf("find agg binary %q: %w", config.GIF.AggPath, err))
+			return prerequisiteError(fmt.Errorf("find agg binary: %w", err))
 		}
 		config.GIF.AggPath = aggPath
+	}
+
+	// Print recording summary.
+	if flags.verbosity != "quiet" {
+		fmt.Fprintf(options.stderr, "Recording:\n")
+		fmt.Fprintf(options.stderr, "  Binary:     %s\n", config.Binary)
+		fmt.Fprintf(options.stderr, "  Keystrokes: %s\n", config.Keystrokes)
+		if config.Output != "" {
+			fmt.Fprintf(options.stderr, "  Output:     %s\n", config.Output)
+		}
+		if config.CastOutput != "" {
+			fmt.Fprintf(options.stderr, "  Cast:       %s\n", config.CastOutput)
+		}
+	}
+
+	// Ensure output directories exist.
+	if config.Output != "" {
+		if dir := filepath.Dir(config.Output); dir != "." {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("create output directory: %w", err)
+			}
+		}
+	}
+	if config.CastOutput != "" {
+		if dir := filepath.Dir(config.CastOutput); dir != "." {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("create cast output directory: %w", err)
+			}
+		}
 	}
 
 	cleanupCast := false
@@ -302,6 +347,34 @@ func validateVerbosity(verbosity string) error {
 	default:
 		return fmt.Errorf("invalid --verbosity %q: use quiet, normal, or high", verbosity)
 	}
+}
+
+// resolveAgg locates the agg binary: first via LookPath, then via cache,
+// and finally by downloading it.
+func resolveAgg(aggPath string, look func(string) (string, error), stderr io.Writer, verbosity string) (string, error) {
+	// Try the configured path via LookPath.
+	if resolved, err := look(aggPath); err == nil {
+		return resolved, nil
+	}
+
+	// Check if already cached.
+	cached := gif.CachedAggPath()
+	if _, err := os.Stat(cached); err == nil {
+		return cached, nil
+	}
+
+	// Auto-download.
+	if verbosity != "quiet" {
+		fmt.Fprintf(stderr, "agg not found; downloading %s...\n", gif.DefaultAggVersion)
+	}
+	downloaded, err := gif.DownloadAgg()
+	if err != nil {
+		return "", err
+	}
+	if verbosity != "quiet" {
+		fmt.Fprintf(stderr, "agg downloaded to %s\n", downloaded)
+	}
+	return downloaded, nil
 }
 
 func defaultAggPath() string {

@@ -1,8 +1,13 @@
 <#
 .SYNOPSIS
-    Records a terminal application session with TUIcast.
+    [DEPRECATED] Records a terminal application session with TUIcast.
 
 .DESCRIPTION
+    DEPRECATED: Use `tuicast record --name <name>` directly instead. The tuicast
+    binary now auto-downloads agg if not found, supports --name for output path
+    conventions, and prints a recording summary. This script is retained for
+    backward compatibility but will be removed in a future release.
+
     Generic recording wrapper for any terminal application. An AI agent (or human)
     supplies the --Keystrokes parameter describing what to demonstrate, and this
     script handles tool resolution and invoking tuicast record.
@@ -100,6 +105,8 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
+
+Write-Warning "record-app.ps1 is deprecated. Use 'tuicast record --name <name>' directly instead. tuicast now auto-downloads agg if needed."
 
 $ToolsDir = Join-Path $HOME 'tools'
 
