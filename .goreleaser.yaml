@@ -40,6 +40,8 @@ archives:
     files:
       - LICENSE
       - README.md
+      - agent/RECORDING-AGENT.md
+      - agent/record-app.ps1
       - src: "build/agg/{{ .Os }}_{{ .Arch }}/agg*"
         dst: .
         strip_parent: true
