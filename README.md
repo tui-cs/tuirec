@@ -11,6 +11,21 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
 ```
 
+`go install` places the binary in `$(go env GOPATH)/bin/`. Ensure that
+directory is on your PATH:
+
+```sh
+# Linux / macOS — add to ~/.bashrc, ~/.zshrc, or equivalent:
+export PATH="$PATH:$(go env GOPATH)/bin"
+
+# Windows (PowerShell) — add to your user PATH permanently:
+$gobin = "$(go env GOPATH)\bin"
+[Environment]::SetEnvironmentVariable("Path", "$env:Path;$gobin", "User")
+# Then restart your terminal.
+```
+
+Verify: `tuicast --version`
+
 Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuicast`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
