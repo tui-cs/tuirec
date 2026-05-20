@@ -2,9 +2,9 @@
 
 **Cross-platform CLI that records any terminal app and produces an animated GIF.**
 
-Give it a binary and a keystroke script â†’ get a polished GIF. No manual screen recording, no browser-based tools.
+Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools.
 
-![tuirec demo â€” recording UICatalog](artifacts/hero.gif)
+![tuirec demo — recording UICatalog](artifacts/hero.gif)
 
 ## Install
 
@@ -17,10 +17,10 @@ go install github.com/gui-cs/tuirec/cmd/tuirec@latest
 directory is on your PATH:
 
 ```sh
-# Linux / macOS â€” add to ~/.bashrc, ~/.zshrc, or equivalent:
+# Linux / macOS — add to ~/.bashrc, ~/.zshrc, or equivalent:
 export PATH="$PATH:$(go env GOPATH)/bin"
 
-# Windows (PowerShell) â€” add to your user PATH permanently:
+# Windows (PowerShell) — add to your user PATH permanently:
 $gobin = "$(go env GOPATH)\bin"
 [Environment]::SetEnvironmentVariable("Path", "$env:Path;$gobin", "User")
 # Then restart your terminal.
@@ -148,6 +148,6 @@ AI agents can use this output to compose keystroke scripts and invoke recordings
 without any prior knowledge of the tool.
 
 If tuirec is not installed, download it from
-[GitHub Releases](https://github.com/gui-cs/tuirec/releases) â€” archives
+[GitHub Releases](https://github.com/gui-cs/tuirec/releases) — archives
 include both `tuirec` and `agg`. See [`llms.txt`](llms.txt) for a
 machine-readable project summary.

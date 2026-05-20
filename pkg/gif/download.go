@@ -79,7 +79,7 @@ func downloadAggWith(client *http.Client) (string, error) {
 
 	outputPath := filepath.Join(cacheDir, aggOutputName())
 
-	// Already cached â€” skip download.
+	// Already cached — skip download.
 	if _, err := os.Stat(outputPath); err == nil {
 		return outputPath, nil
 	}
