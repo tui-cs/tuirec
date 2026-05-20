@@ -21,7 +21,7 @@ Rewrite TUIcast as a **cross-platform Go CLI** that records any terminal app and
 | Windows ConPTY library | `github.com/UserExistsError/conpty` | Resolves CLAUDE.md open decision #1. The previously-referenced `iamacarpet/go-conpty` **does not exist** as a module. `UserExistsError/conpty` builds and passes on Windows — proven by the Phase 1 spike (PR #3) |
 | Windows in v1 | **In scope — folded back into Phase 1** (not a deferred spike) | PR #3 is the spike evidence: ConPTY works. Cross-platform PTY is a Phase 1 deliverable again. The only Windows item still deferred is agg-on-Windows in CI for full-GIF integration |
 | Module path | `github.com/gui-cs/TUIcast` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
-| agg distribution | Require as a prerequisite; **pin agg `v1.5.0`** | Resolves open decision "bundle vs require". CI installs it per-OS (see CI section). Bundling deferred post-v1. Upstream does not publish a native Windows ARM64 asset for `v1.5.0`; Windows ARM64 users should use the x64 Windows binary via OS emulation or build `agg` from source and pass `--agg-path`/`-agg-path` |
+| agg distribution | Bundle pinned `agg v1.5.0` in release archives and support source-build prerequisites | Release archives include a sibling `agg` binary that TUIcast auto-detects before PATH. `go install`/local builds still require `agg` on PATH or `--agg-path`. Upstream does not publish a native Windows ARM64 asset for `v1.5.0`; Windows ARM64 archives include the x64 Windows binary for OS emulation, or users can build `agg` from source and pass `--agg-path` |
 | Recording clock | Support a deterministic (scripted) clock in addition to wall-clock | Wall-clock timing makes GIFs non-reproducible and CI flaky; scripted timing enables golden-GIF regression |
 
 ---
@@ -107,9 +107,9 @@ Rewrite TUIcast as a **cross-platform Go CLI** that records any terminal app and
 2. **NFR-2: Cross-platform** — CI tests on ubuntu, macos, windows
 3. **NFR-3: Fast** — CLI overhead < 100ms; recording adds negligible latency
 4. **NFR-4: No network required** — v1 works entirely offline
-5. **NFR-5: agg is the only external dependency** — clearly documented
-6. **NFR-6: Easy install** — users can install via Homebrew, Scoop, `go install`, or download a binary from GitHub Releases
-7. **NFR-7: Automated releases** — pushing a `v*` tag builds cross-platform binaries and publishes everywhere
+5. **NFR-5: Release archives are self-contained** — source builds still clearly document `agg` as the only external dependency
+6. **NFR-6: Easy install** — users can install via `go install` or download a self-contained archive from GitHub Releases; Homebrew/Scoop follow after tap/bucket setup
+7. **NFR-7: Automated releases** — pushing a `v*` tag builds cross-platform archives and publishes GitHub Releases
 
 ---
 
@@ -132,7 +132,7 @@ tuicast record \
   --speed <f>               # GIF playback speed multiplier (default: 1.0)
   --max-duration <s>        # Max recording seconds (default: 60)
   --title <text>            # Title embedded in cast file
-  --agg-path <path>         # Path to agg binary (default: find in PATH)
+  --agg-path <path>         # Path to agg binary (default: sibling agg, ./tools/agg, then PATH)
 ```
 
 ---
@@ -338,15 +338,15 @@ row and no Unix-only fallback.
 | Method | Command | Platform |
 |--------|---------|----------|
 | Go install | `go install github.com/gui-cs/TUIcast/cmd/tuicast@latest` | Any (requires Go) |
-| Binary download | GitHub Releases page | Any |
+| Binary download | GitHub Releases page; archives include `tuicast` + pinned `agg` | Any |
 | Homebrew | Planned after tap repo + token setup | macOS, Linux |
 | Scoop | Planned after bucket repo + token setup | Windows |
 
 ### Release Process
 
 1. Tag a commit: `git tag v0.1.0 && git push --tags`
-2. GoReleaser (via `.github/workflows/release.yml`) builds for linux/darwin/windows × amd64/arm64
-3. Creates GitHub Release with tarballs, zips, and checksums
+2. GoReleaser (via `.github/workflows/release.yml`) downloads pinned `agg v1.5.0`, then builds for linux/darwin/windows × amd64/arm64
+3. Creates GitHub Release with tarballs/zips containing `tuicast`, matching `agg`, README, LICENSE, and checksums
 4. Homebrew tap and Scoop bucket publishing are enabled after the target repos
    and tokens exist.
 
@@ -409,11 +409,11 @@ Encode these so they are **not** rediscovered:
 | Risk | Mitigation |
 |------|-----------|
 | Windows ConPTY quirks | **Resolved:** spike (PR #3) proved `github.com/UserExistsError/conpty` builds + passes on Windows; folded into Phase 1. Full Windows cast→GIF integration is covered by the CI integration job. |
-| agg not available on all platforms | Pinned `agg v1.5.0`, installed per-OS in CI; required-vs-skip behavior defined; documented prerequisite for users |
+| agg not available on all platforms | Pinned `agg v1.5.0`, installed per-OS in CI and bundled into release archives; source-build prerequisite behavior is documented |
 | Key map incompleteness | Full normative table in-spec (incl. the F11/F12/`Alt` gaps the prototype had); R6 unit test per row; the `Ctrl+Q` bug is the testapp's exit path |
 | Weak success signal | GIF validation decodes frames + asserts pixel variance + golden compare, not just magic bytes |
 | Non-reproducible recordings | `--clock scripted` makes `.cast`/GIF byte-stable for golden regression |
-| Windows ARM64 agg availability | Use upstream x64 Windows `agg` under Windows emulation for demos; validated on Windows ARM64. Native Windows ARM64 `agg` is a tracked follow-up unless upstream ships an asset |
+| Windows ARM64 agg availability | Release archives include upstream x64 Windows `agg` under Windows emulation; validated on Windows ARM64. Native Windows ARM64 `agg` is a tracked follow-up unless upstream ships an asset |
 | Concurrency hangs/races | Single-context teardown, single PTY-close owner, drain window, `EIO`-as-EOF, `-race` gate |
 | Learning Go | Project is well-scoped; PTY handling is the only complex part |
 
@@ -429,7 +429,7 @@ v1 is done when:
    and `go test -tags integration ./...` green
 3. PTY recording and the full cast→GIF pipeline work on Linux, macOS,
    **and Windows** (ConPTY)
-4. Single binary, no runtime deps beyond pinned `agg v1.5.0`
+4. Release archives include `tuicast` plus pinned `agg v1.5.0`; source builds require `agg` separately
 5. README with install instructions and usage examples
 6. CI green on the matrix (untagged tests and `integration` job on Linux,
    macOS, and Windows)

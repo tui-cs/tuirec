@@ -2,7 +2,7 @@
 
 **Cross-platform CLI that records any terminal app and produces an animated GIF.**
 
-Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools, no runtime dependencies beyond `agg`.
+Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools.
 
 ## Install
 
@@ -11,10 +11,10 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 go install github.com/gui-cs/TUIcast/cmd/tuicast@latest
 ```
 
-Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases).
+Or download a binary from [GitHub Releases](https://github.com/gui-cs/TUIcast/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuicast`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. TUIcast does not vendor `agg`; install it on your PATH or pass `--agg-path` to the demo commands.
+**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. `go install` and local `go build` produce only `tuicast`; install `agg` on your PATH or pass `--agg-path` unless you are using a release archive.
 
 ## Build and Run Locally on Windows
 
@@ -34,7 +34,7 @@ Run the Windows ConPTY tests:
 go test .\...
 ```
 
-If `agg` is installed on your PATH, run the GIF renderer and CLI end-to-end integration tests:
+If `agg` is installed on your PATH or next to `tuicast`, run the GIF renderer and CLI end-to-end integration tests:
 
 ```powershell
 go test -tags integration .\...
@@ -50,7 +50,7 @@ Invoke-WebRequest `
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. Use the x64 Windows binary above via Windows x64 emulation (validated on Windows ARM64), or build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
+On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. The Windows ARM64 TUIcast release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 
