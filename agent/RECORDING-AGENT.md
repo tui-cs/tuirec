@@ -13,7 +13,7 @@ can use this as context to drive `tuicast record` directly.
     --name "search-replace" \
     --title "my-app: find and replace" \
     --show-command '$ my-app config.yaml' \
-    --keystrokes "wait:2000,Ctrl+H,`hello`,Tab,`world`,Alt+A,wait:1500,Esc" \
+    --keystrokes 'wait:2000,Ctrl+H,`hello`,Tab,`world`,Alt+A,wait:1500,Esc' \
     --open --copy
 ```
 
@@ -102,6 +102,23 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   case-insensitive for key resolution, so `Delete` and `delete` both send the
   Delete key.
 
+### Bash / Zsh quoting
+
+In bash/zsh, backticks trigger **command substitution** inside double quotes.
+Always use **single quotes** around the `--keystrokes` value:
+
+```bash
+# WRONG — bash expands backticks as command substitution:
+--keystrokes "wait:1200,`ls -la`,Enter"
+# → error: "unrecognized token """
+
+# RIGHT — single quotes prevent expansion:
+--keystrokes 'wait:1200,`ls -la`,Enter,wait:1500,`exit`,Enter'
+```
+
+**Best practice for agents on bash/zsh:** Always single-quote the entire
+`--keystrokes` value. Single quotes pass backticks through verbatim.
+
 ### PowerShell escaping
 
 In PowerShell, the backtick (`` ` ``) is the escape character. When your
@@ -140,6 +157,8 @@ If running inside a restricted agent sandbox that blocks PTY-spawning commands:
 | Not using `--verbosity high` on first attempt | Can't tell if keys were sent | Always use `--verbosity high` initially |
 | Bare `delete`/`home`/`end`/`space` as literal | Sends key press instead of text | Wrap in backticks: `` `delete` `` |
 | Relative `--binary` path on Windows | Go security error | Use absolute path or `./` prefix |
+| Double-quoting `--keystrokes` in bash | Shell expands backticks as commands | Use single quotes: `'wait:1000,`ls`,Enter'` |
+| `--args "edit ./file.cs"` (space-separated) | Passed as one argument | Use `--args edit,./file.cs` or repeat flag |
 
 ---
 
@@ -231,20 +250,23 @@ wait:2000,Ctrl+F,wait:500,`cursor`,Enter,wait:1500,Esc
 
 ### Subcommand CLI with --args
 
-> **⚠️ `--args` is a repeatable flag — one token per flag.** Do NOT pass multiple
-> args as a single quoted string. Each argv element needs its own `--args`:
+> **⚠️ `--args` is a string-slice flag.** Do NOT pass multiple args as a single
+> space-separated string. Use **comma-separated** values or **repeat the flag**:
 
 ```bash
 # WRONG — passes "edit ./file.cs" as one argument:
 tuicast record --binary ./my-app.exe --args "edit ./file.cs" ...
 
-# RIGHT — separate --args per token:
+# RIGHT — comma-separated (one --args flag):
+tuicast record --binary ./my-app.exe --args edit,./file.cs ...
+
+# ALSO RIGHT — repeated flags:
 tuicast record --binary ./my-app.exe --args edit --args ./file.cs ...
 ```
 
 ```bash
 tuicast record --binary ./my-app.exe --args date \
-    --keystrokes "wait:2000,Home,`09101966`,wait:1500,Enter" \
+    --keystrokes 'wait:2000,Home,`09101966`,wait:1500,Enter' \
     --name "app-date" --open --copy
 ```
 
@@ -264,7 +286,7 @@ tuicast record \
     --binary bash \
     --name "ls-tutorial" \
     --show-command '$ ls tutorial' \
-    --keystrokes "wait:500,`ls`,Enter,wait:1500,`ls -la`,Enter,wait:1500,`ls -lh`,Enter,wait:1500,`exit`,Enter" \
+    --keystrokes 'wait:500,`ls`,Enter,wait:1500,`ls -la`,Enter,wait:1500,`ls -lh`,Enter,wait:1500,`exit`,Enter' \
     --keystroke-delay 50 \
     --drain 1000 \
     --open --copy
@@ -287,7 +309,7 @@ Notes:
 tuicast record \
     --binary ./my-app \
     --name "demo" \
-    --keystrokes "wait:2000,`Hello`,wait:1500,Esc" \
+    --keystrokes 'wait:2000,`Hello`,wait:1500,Esc' \
     --show-command '$ my-app' \
     --startup-delay 500 \
     --kitty-keyboard \
