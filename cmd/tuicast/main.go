@@ -169,6 +169,7 @@ pacing to stderr.`,
 	cmd.Flags().StringVar(&flags.config.GIF.Font, "font", "", "Font family for agg; omit for agg default")
 	cmd.Flags().IntVar(&flags.config.GIF.FontSize, "font-size", flags.config.GIF.FontSize, "Font size in pixels")
 	cmd.Flags().Float64Var(&flags.config.GIF.LineHeight, "line-height", flags.config.GIF.LineHeight, "Line-height multiplier")
+	cmd.Flags().Float64Var(&flags.config.GIF.LetterSpacing, "letter-spacing", flags.config.GIF.LetterSpacing, "Letter-spacing adjustment in pixels (negative closes gaps)")
 	cmd.Flags().Float64Var(&flags.config.GIF.Speed, "speed", flags.config.GIF.Speed, "GIF playback speed multiplier")
 	cmd.Flags().IntVar(&flags.maxDurationSec, "max-duration", flags.maxDurationSec, "Max recording duration in seconds")
 	cmd.Flags().StringVar(&flags.config.Title, "title", "", "Title embedded in the cast file")

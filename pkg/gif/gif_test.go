@@ -69,6 +69,24 @@ func TestRenderArgsIncludesFontWhenSet(t *testing.T) {
 	}
 }
 
+func TestRenderArgsIncludesLetterSpacingWhenSet(t *testing.T) {
+	t.Parallel()
+
+	got := renderArgs("in.cast", "out.gif", normalizeConfig(Config{LetterSpacing: -0.5}))
+	want := []string{
+		"--theme", "monokai",
+		"--speed", "1",
+		"--font-size", "14",
+		"--line-height", "1",
+		"--letter-spacing", "-0.5",
+		"in.cast", "out.gif",
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("renderArgs() = %#v, want %#v", got, want)
+	}
+}
+
 func TestValidateRejectsSingleFrameGIF(t *testing.T) {
 	t.Parallel()
 
