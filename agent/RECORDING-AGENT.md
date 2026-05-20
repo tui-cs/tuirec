@@ -49,15 +49,26 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 
 ### Known gotchas
 
-- **`cursor`, `page`, `arrow` as literal text** — the parser treats these as
+- ⚠️ **`cursor`, `page`, `arrow` as literal text** — the parser treats these as
   key-like prefixes (matching `CursorUp`, `PageDown`, etc.). If you need to
   type them literally, split across token boundaries: `cur,sor` types "cursor",
-  `pa,ge` types "page". This is a parser heuristic, not a bug.
-- **`--agg-path` is required** unless `agg` is on your system PATH. Typical
-  location: `~/tools/agg.exe` (Windows) or `~/tools/agg` (Unix).
+  `pa,ge` types "page". This is especially common when searching in Terminal.Gui
+  apps where "cursor" is a frequent term.
+- **`--agg-path` is required** unless `agg` is on your system PATH. When calling
+  `tuicast record` directly, **always pass `--agg-path`**. Typical location:
+  `~/tools/agg.exe` (Windows) or `~/tools/agg` (Unix). The `record-app.ps1`
+  wrapper handles this automatically.
+- **`--show-command` format** — TUIcast renders exactly what you provide. Include
+  the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
+  TUIcast does not add its own prompt decoration.
 - **`--show-command` with alt-screen apps** — works correctly (pre-roll enters
   alt-screen automatically), but the synthetic prompt frame will be brief. Omit
   it if the app's own UI is the focus.
+- **`--keystroke-delay` affects literal text too** — each character in a literal
+  token gets the inter-key delay (default 200ms). For fast typing sequences,
+  use `--keystroke-delay 50` or shorter.
+- **If `record-app.ps1` is blocked** by execution policy or permissions, fall
+  back to calling `tuicast.exe record` directly with equivalent flags.
 
 ---
 
