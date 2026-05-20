@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -38,6 +39,30 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+func init() {
+	// When installed via `go install`, ldflags aren't set. Fall back to
+	// the build info embedded by the Go toolchain.
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	if version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		version = info.Main.Version
+	}
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			if len(s.Value) >= 7 && commit == "none" {
+				commit = s.Value[:7]
+			}
+		case "vcs.time":
+			if date == "unknown" {
+				date = s.Value
+			}
+		}
+	}
+}
 
 type cliError struct {
 	code int
