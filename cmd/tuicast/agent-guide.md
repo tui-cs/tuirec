@@ -56,11 +56,12 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   key-like prefixes (matching `CursorUp`, `PageDown`, etc.). If you need to
   type them literally, split across token boundaries: `cur,sor` types "cursor",
   `pa,ge` types "page". This is especially common when searching in Terminal.Gui
-  apps where "cursor" is a frequent term.
-- **`--agg-path` is required** unless `agg` is on your system PATH. When calling
-  `tuicast record` directly, **always pass `--agg-path`**. Typical location:
-  `~/tools/agg.exe` (Windows) or `~/tools/agg` (Unix). The `record-app.ps1`
-  wrapper handles this automatically.
+  apps where "cursor" is a frequent term. **Note:** splitting inserts one
+  `--keystroke-delay` pause at the split point (between `r` and `s`). Use
+  `--keystroke-delay 50` to minimize the visible gap when splitting words.
+- **`--agg-path` is required** unless `agg` is on your system PATH. **Always
+  pass `--agg-path ~/tools/agg.exe`** (Windows) or `--agg-path ~/tools/agg`
+  (Unix) when calling `tuicast record` directly.
 - **`--show-command` format** — TUIcast renders exactly what you provide. Include
   the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
   TUIcast does not add its own prompt decoration.
@@ -68,8 +69,9 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   alt-screen automatically), but the synthetic prompt frame will be brief. Omit
   it if the app's own UI is the focus.
 - **`--keystroke-delay` affects literal text too** — each character in a literal
-  token gets the inter-key delay (default 200ms). For fast typing sequences,
-  use `--keystroke-delay 50` or shorter.
+  token gets the inter-key delay (default 200ms). Characters *within* a single
+  token are paced by `--keystroke-delay`; the same delay also applies at token
+  boundaries. For fast typing sequences, use `--keystroke-delay 50` or shorter.
 - **If `record-app.ps1` is blocked** by execution policy or permissions, fall
   back to calling `tuicast.exe record` directly with equivalent flags. If
   PowerShell's `&` call operator is also blocked, wrap in `cmd /c`:
@@ -77,6 +79,9 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 - **First frame may be blank** — `--startup-delay` records the alt-screen
   transition as the initial frame. The actual UI appears after the delay. This
   is normal; the blank frame is brief in the GIF.
+- **Verifying recording content** — after recording, check the `.cast` file for
+  expected output strings (e.g. `grep "About" demo.cast`) to confirm the app
+  reached the intended state without needing to view the GIF.
 
 ---
 
@@ -113,6 +118,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
    keyboard protocol, which disambiguates Ctrl+M from Enter, Ctrl+I from
    Tab, etc. The app must support progressive enhancement (Terminal.Gui v2
    does). Without this flag, those key pairs produce identical bytes.
+
+10. **Use `--drain 2000` for TUI apps** — after the last keystroke, keep
+    recording for 2 seconds so the final UI state is visible in the GIF.
+    Without drain, the recording may end before the last action renders.
 
 ---
 
