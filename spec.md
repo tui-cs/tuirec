@@ -123,6 +123,11 @@ tuicast record \
   --cast-output <path>      # Also save the raw cast file
   --keystrokes <csv>        # Keystroke sequence (default: "wait:3000,Ctrl+C")
   --keystroke-delay <ms>    # Default pause between keystrokes (default: 200)
+  --input-delay <ms>        # Initial pause before scripted key input (default: 0)
+  --startup-delay <ms>      # Pause after target starts before output/input (default: 0)
+  --show-command <text>     # Synthetic shell command typed before target output
+  --show-command-delay <ms> # Delay between show-command chars (default: 35)
+  --show-command-hold <ms>  # Hold after show-command Enter (default: 500)
   --cols <n>                # Terminal columns (default: 120)
   --rows <n>                # Terminal rows (default: 30)
   --theme <name>            # agg color theme (default: monokai)
@@ -133,6 +138,7 @@ tuicast record \
   --max-duration <s>        # Max recording seconds (default: 60)
   --title <text>            # Title embedded in cast file
   --agg-path <path>         # Path to agg binary (default: sibling agg, ./tools/agg, then PATH)
+  --verbosity <level>       # quiet, normal, or high (high logs keys and pacing)
 ```
 
 ---

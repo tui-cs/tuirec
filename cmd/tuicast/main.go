@@ -46,11 +46,16 @@ type cliOptions struct {
 }
 
 type recordFlags struct {
-	config           record.Config
-	args             []string
-	keystrokeDelayMS int
-	maxDurationSec   int
-	drainMS          int
+	config             record.Config
+	args               []string
+	keystrokeDelayMS   int
+	inputDelayMS       int
+	startupDelayMS     int
+	showCommandDelayMS int
+	showCommandHoldMS  int
+	maxDurationSec     int
+	drainMS            int
+	verbosity          string
 }
 
 func main() {
@@ -126,7 +131,12 @@ Keystroke tokens are comma-separated. Use wait:<ms> for delays, click:col:row
 for SGR mouse clicks, literal text for typed text, and Terminal.Gui Key strings
 for named keys. Key strings use the same format as Terminal.Gui Key.ToString()
 and Key.TryParse(), such as Ctrl+C, Ctrl-C, A-Ctrl, Shift+Tab,
-Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.`,
+Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.
+
+Use --show-command to type a synthetic shell prompt/command into the GIF before
+the target starts. Use --startup-delay to wait before copying target output,
+--input-delay to pace scripted input, and --verbosity high to log keys and
+pacing to stderr.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return usageError(err)
@@ -148,6 +158,11 @@ Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.`,
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
 	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, literal text, or Terminal.Gui Key strings")
 	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
+	cmd.Flags().IntVar(&flags.inputDelayMS, "input-delay", flags.inputDelayMS, "Milliseconds to wait before playing the keystroke script")
+	cmd.Flags().IntVar(&flags.startupDelayMS, "startup-delay", flags.startupDelayMS, "Milliseconds to wait after starting the target before copying output and key input")
+	cmd.Flags().StringVar(&flags.config.ShowCommand, "show-command", "", "Synthetic shell command line to type into the GIF before the target starts")
+	cmd.Flags().IntVar(&flags.showCommandDelayMS, "show-command-delay", flags.showCommandDelayMS, "Milliseconds between typed show-command characters")
+	cmd.Flags().IntVar(&flags.showCommandHoldMS, "show-command-hold", flags.showCommandHoldMS, "Milliseconds to hold after show-command Enter before target starts")
 	cmd.Flags().IntVar(&flags.config.Size.Cols, "cols", flags.config.Size.Cols, "Terminal columns")
 	cmd.Flags().IntVar(&flags.config.Size.Rows, "rows", flags.config.Size.Rows, "Terminal rows")
 	cmd.Flags().StringVar(&flags.config.GIF.Theme, "theme", flags.config.GIF.Theme, "agg color theme")
@@ -159,6 +174,7 @@ Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.`,
 	cmd.Flags().StringVar(&flags.config.Title, "title", "", "Title embedded in the cast file")
 	cmd.Flags().StringVar(&flags.config.GIF.AggPath, "agg-path", flags.config.GIF.AggPath, "Path to agg binary")
 	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
+	cmd.Flags().StringVar(&flags.verbosity, "verbosity", flags.verbosity, "Output verbosity: quiet, normal, or high")
 
 	return cmd
 }
@@ -177,9 +193,12 @@ func defaultRecordFlags() *recordFlags {
 				LineHeight: 1.0,
 			},
 		},
-		keystrokeDelayMS: 200,
-		maxDurationSec:   60,
-		drainMS:          500,
+		keystrokeDelayMS:   200,
+		showCommandDelayMS: 35,
+		showCommandHoldMS:  500,
+		maxDurationSec:     60,
+		drainMS:            500,
+		verbosity:          "normal",
 	}
 }
 
@@ -189,6 +208,9 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	}
 
 	if _, err := keystroke.Parse(flags.config.Keystrokes); err != nil {
+		return usageError(err)
+	}
+	if err := validateVerbosity(flags.verbosity); err != nil {
 		return usageError(err)
 	}
 
@@ -201,8 +223,14 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	config.Binary = binary
 	config.Args = flags.args
 	config.KeystrokeDelay = time.Duration(flags.keystrokeDelayMS) * time.Millisecond
+	config.InputDelay = time.Duration(flags.inputDelayMS) * time.Millisecond
+	config.StartupDelay = time.Duration(flags.startupDelayMS) * time.Millisecond
+	config.CommandDelay = time.Duration(flags.showCommandDelayMS) * time.Millisecond
+	config.CommandHold = time.Duration(flags.showCommandHoldMS) * time.Millisecond
 	config.MaxDuration = time.Duration(flags.maxDurationSec) * time.Second
 	config.DrainDuration = time.Duration(flags.drainMS) * time.Millisecond
+	config.Verbose = flags.verbosity == "high"
+	config.LogWriter = options.stderr
 
 	if config.Output != "" {
 		aggPath, err := options.look(config.GIF.AggPath)
@@ -233,14 +261,23 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 		return classifyRunError(err)
 	}
 
-	if result.GIFPath != "" {
+	if flags.verbosity != "quiet" && result.GIFPath != "" {
 		fmt.Fprintf(options.stdout, "Wrote %s\n", result.GIFPath)
 	}
-	if !cleanupCast && result.CastPath != "" {
+	if flags.verbosity != "quiet" && !cleanupCast && result.CastPath != "" {
 		fmt.Fprintf(options.stdout, "Wrote %s\n", result.CastPath)
 	}
 
 	return nil
+}
+
+func validateVerbosity(verbosity string) error {
+	switch verbosity {
+	case "quiet", "normal", "high":
+		return nil
+	default:
+		return fmt.Errorf("invalid --verbosity %q: use quiet, normal, or high", verbosity)
+	}
 }
 
 func defaultAggPath() string {

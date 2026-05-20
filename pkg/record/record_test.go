@@ -1,17 +1,20 @@
 package record
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/gui-cs/TUIcast/pkg/gif"
 	"github.com/gui-cs/TUIcast/pkg/pty"
+	"github.com/gui-cs/TUIcast/pkg/recorder"
 )
 
 func TestRunRecordsKeystrokesAndRenders(t *testing.T) {
@@ -54,6 +57,93 @@ func TestRunRecordsKeystrokesAndRenders(t *testing.T) {
 
 	if renderer.castPath != castPath {
 		t.Fatalf("renderer castPath = %q, want %q", renderer.castPath, castPath)
+	}
+}
+
+func TestRunWritesCommandPreRollToCast(t *testing.T) {
+	originalStartPTY := startPTY
+	fakeSession := newFakeSession()
+	startPTY = func(string, []string, pty.Size, pty.Options) (pty.Session, error) {
+		return fakeSession, nil
+	}
+	defer func() {
+		startPTY = originalStartPTY
+	}()
+
+	castPath := filepath.Join(t.TempDir(), "recording.cast")
+	clock := recorder.NewScriptedClock()
+	_, err := Run(context.Background(), Config{
+		Binary:         "fake-app",
+		CastOutput:     castPath,
+		Keystrokes:     "Ctrl+Q",
+		KeystrokeDelay: time.Millisecond,
+		DrainDuration:  time.Millisecond,
+		MaxDuration:    time.Second,
+		Clock:          clock,
+		ShowCommand:    "PS> ted foo.cs",
+		CommandDelay:   10 * time.Millisecond,
+		CommandHold:    20 * time.Millisecond,
+		Renderer:       &fakeRenderer{},
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	cast, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+
+	got := string(cast)
+	for _, want := range []string{`"P"`, `"S"`, `"\u003e"`, `"t"`, `"\r\n"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("cast missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRunHighVerbosityLogsPacing(t *testing.T) {
+	originalStartPTY := startPTY
+	fakeSession := newFakeSession()
+	startPTY = func(string, []string, pty.Size, pty.Options) (pty.Session, error) {
+		return fakeSession, nil
+	}
+	defer func() {
+		startPTY = originalStartPTY
+	}()
+
+	var log bytes.Buffer
+	_, err := Run(context.Background(), Config{
+		Binary:         "fake-app",
+		CastOutput:     filepath.Join(t.TempDir(), "recording.cast"),
+		Keystrokes:     "Ctrl+Q",
+		KeystrokeDelay: time.Millisecond,
+		StartupDelay:   time.Millisecond,
+		InputDelay:     2 * time.Millisecond,
+		DrainDuration:  time.Millisecond,
+		MaxDuration:    time.Second,
+		Clock:          recorder.NewScriptedClock(),
+		ShowCommand:    "PS> fake-app",
+		CommandDelay:   time.Millisecond,
+		CommandHold:    time.Millisecond,
+		Renderer:       &fakeRenderer{},
+		Verbose:        true,
+		LogWriter:      &log,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	got := log.String()
+	for _, want := range []string{
+		`tuicast: show command "PS> fake-app"`,
+		"tuicast: startup delay 1ms",
+		"tuicast: input delay 2ms",
+		"tuicast: key Ctrl+Q",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("log missing %q:\n%s", want, got)
+		}
 	}
 }
 
