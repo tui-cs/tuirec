@@ -75,8 +75,9 @@ func (key terminalKey) kittyNamedSequence() (string, error) {
 
 func (key terminalKey) kittyRuneSequence() string {
 	r := key.rune
-	// Lowercase the rune unless Shift is held
-	if r >= 'A' && r <= 'Z' && key.mods&modShift == 0 {
+	// Kitty spec: always use the unshifted (lowercase) codepoint for letters.
+	// Shift is conveyed only via the modifier parameter.
+	if r >= 'A' && r <= 'Z' {
 		r += 'a' - 'A'
 	}
 

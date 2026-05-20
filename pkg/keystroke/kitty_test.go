@@ -32,9 +32,9 @@ func TestKittySequence(t *testing.T) {
 		{"page up", terminalKey{name: "PageUp"}, "\x1b[57350u"},
 		{"page down", terminalKey{name: "PageDown"}, "\x1b[57351u"},
 		{"lowercase a", terminalKey{rune: 'A'}, "\x1b[97u"},
-		{"uppercase A (shift)", terminalKey{rune: 'A', mods: modShift}, "\x1b[65;2u"},
+		{"uppercase A (shift)", terminalKey{rune: 'A', mods: modShift}, "\x1b[97;2u"},
 		{"ctrl+a", terminalKey{rune: 'A', mods: modCtrl}, "\x1b[97;5u"},
-		{"ctrl+shift+a", terminalKey{rune: 'A', mods: modCtrl | modShift}, "\x1b[65;6u"},
+		{"ctrl+shift+a", terminalKey{rune: 'A', mods: modCtrl | modShift}, "\x1b[97;6u"},
 		{"digit 5", terminalKey{rune: '5'}, "\x1b[53u"},
 		{"alt+5", terminalKey{rune: '5', mods: modAlt}, "\x1b[53;3u"},
 	}

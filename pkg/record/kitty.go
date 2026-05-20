@@ -10,18 +10,19 @@ import (
 // protocol sequences. When the target app sends a query or enable request,
 // the interceptor writes the appropriate response back to the PTY input.
 type kittyInterceptor struct {
-	reader io.Reader
-	writer io.Writer // PTY input (write side)
-	mu     sync.Mutex
-	mode   int // current keyboard mode level (0 = legacy)
-	buf    []byte
+	reader    io.Reader
+	writer    io.Writer // PTY input (write side)
+	mu        sync.Mutex
+	modeStack []int // stack of pushed keyboard modes
+	buf       []byte
 }
 
 // newKittyInterceptor wraps reader and injects protocol responses via writer.
 func newKittyInterceptor(reader io.Reader, writer io.Writer) *kittyInterceptor {
 	return &kittyInterceptor{
-		reader: reader,
-		writer: writer,
+		reader:    reader,
+		writer:    writer,
+		modeStack: []int{0},
 	}
 }
 
@@ -85,7 +86,11 @@ func (k *kittyInterceptor) scan(data []byte) {
 				return
 			}
 			if remaining[3] == 'u' {
-				k.mode = 0
+				if len(k.modeStack) > 1 {
+					k.modeStack = k.modeStack[:len(k.modeStack)-1]
+				} else {
+					k.modeStack = []int{0}
+				}
 				i += 3
 				continue
 			}
@@ -112,7 +117,7 @@ func (k *kittyInterceptor) scan(data []byte) {
 				mode = mode*10 + int(b-'0')
 			}
 			if mode >= 0 {
-				k.mode = mode
+				k.modeStack = append(k.modeStack, mode)
 			}
 			i += 3 + end
 			continue
@@ -123,14 +128,18 @@ func (k *kittyInterceptor) scan(data []byte) {
 // respondQuery writes the current mode back to the PTY as \x1b[?{mode}u.
 func (k *kittyInterceptor) respondQuery() {
 	resp := []byte{'\x1b', '[', '?'}
-	mode := k.mode
+	mode := 0
+	if len(k.modeStack) > 0 {
+		mode = k.modeStack[len(k.modeStack)-1]
+	}
 	if mode == 0 {
 		resp = append(resp, '0')
 	} else {
 		digits := []byte{}
-		for mode > 0 {
-			digits = append([]byte{byte('0' + mode%10)}, digits...)
-			mode /= 10
+		m := mode
+		for m > 0 {
+			digits = append([]byte{byte('0' + m%10)}, digits...)
+			m /= 10
 		}
 		resp = append(resp, digits...)
 	}

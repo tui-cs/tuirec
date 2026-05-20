@@ -67,8 +67,8 @@ func TestKittyInterceptorEnableThenQuery(t *testing.T) {
 func TestKittyInterceptorPopMode(t *testing.T) {
 	t.Parallel()
 
-	// Enable mode 3, then pop, then query
-	input := bytes.NewReader([]byte("\x1b[>3u\x1b[<u\x1b[?u"))
+	// Push mode 3, push mode 1, pop (back to 3), query
+	input := bytes.NewReader([]byte("\x1b[>3u\x1b[>1u\x1b[<u\x1b[?u"))
 	var response bytes.Buffer
 	interceptor := newKittyInterceptor(input, &response)
 
@@ -83,7 +83,32 @@ func TestKittyInterceptorPopMode(t *testing.T) {
 		}
 	}
 
-	// After pop, mode reverts to 0
+	// After pop, mode reverts to 3 (previous stack entry)
+	if response.String() != "\x1b[?3u" {
+		t.Errorf("response = %q, want %q", response.String(), "\x1b[?3u")
+	}
+}
+
+func TestKittyInterceptorPopToBase(t *testing.T) {
+	t.Parallel()
+
+	// Push mode 3, pop, pop again (can't go below base), query
+	input := bytes.NewReader([]byte("\x1b[>3u\x1b[<u\x1b[<u\x1b[?u"))
+	var response bytes.Buffer
+	interceptor := newKittyInterceptor(input, &response)
+
+	buf := make([]byte, 256)
+	for {
+		_, err := interceptor.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Read error: %v", err)
+		}
+	}
+
+	// After popping past the base, mode is 0
 	if response.String() != "\x1b[?0u" {
 		t.Errorf("response = %q, want %q", response.String(), "\x1b[?0u")
 	}
