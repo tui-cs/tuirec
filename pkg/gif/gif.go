@@ -27,12 +27,13 @@ var ErrValidation = errors.New("gif validation failed")
 
 // Config controls agg GIF rendering.
 type Config struct {
-	AggPath    string
-	Theme      string
-	Speed      float64
-	Font       string
-	FontSize   int
-	LineHeight float64
+	AggPath       string
+	Theme         string
+	Speed         float64
+	Font          string
+	FontSize      int
+	LineHeight    float64
+	LetterSpacing float64
 }
 
 // Validation describes a decoded GIF.
@@ -67,6 +68,9 @@ func renderArgs(castPath, outputPath string, config Config) []string {
 	}
 	if config.Font != "" {
 		args = append(args, "--font-family", config.Font)
+	}
+	if config.LetterSpacing != 0 {
+		args = append(args, "--letter-spacing", formatFloat(config.LetterSpacing))
 	}
 	args = append(args, castPath, outputPath)
 
