@@ -61,7 +61,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 
 - **Always use absolute paths or `./` prefix for `--binary`** on Windows.
   Bare names like `--binary "clet.exe"` fail with a Go security error. Use
-  `--binary ./clet.exe` or `--binary C:\path\to\clet.exe`.
+  `--binary ./clet.exe` or `--binary C:/path/to/clet.exe`. **Windows agents:**
+  discover the path with `where.exe <name>`, then convert backslashes to forward
+  slashes (`C:/Users/Tig/.dotnet/tools/clet.exe`) — backslash paths get mangled
+  when invoked via bash-style shells.
 - **`--show-command` format** — TUIcast renders exactly what you provide. Include
   the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
   TUIcast does not add its own prompt decoration. **Windows/PowerShell note:**
@@ -71,12 +74,19 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 - **`--show-command` with alt-screen apps** — works correctly (pre-roll enters
   alt-screen automatically), but the synthetic prompt frame will be brief. Omit
   it if the app's own UI is the focus.
+- **`--show-command` timing budget** — the pre-roll renders at ~35ms/char plus a
+  500ms hold. A 33-char show-command adds ~1.7s before the app even starts (on
+  top of `--startup-delay`). Factor this into `--max-duration` planning.
 - **`--keystroke-delay` affects literal text** — each character in a backtick
   literal gets the inter-key delay (default 200ms). **Rule of thumb:** budget
   `n × 200ms` per literal word (e.g. `` `cursor` `` = 6 chars × 200ms = 1.2s).
   For typing-heavy scripts, use `--keystroke-delay 50` or shorter. Per-character
   pacing is a feature for masked/validated fields — keep the default 200ms for
   date/phone/IP inputs so each slot transition is visible.
+  **Worked example:** a script with `` `switch` `` (6 chars = 1.2s) +
+  3× `PageDown` (3 × 200ms = 0.6s) + waits (5 × 500ms = 2.5s) + startup (2s) =
+  ~6.3s total. Add `--show-command` (~1.5s) and `--drain 2000` (2s) → budget
+  `--max-duration 15` minimum.
 - **First frame may be blank** — `--startup-delay` records the alt-screen
   transition as the initial frame. The actual UI appears after the delay. This
   is normal; the blank frame is brief in the GIF.
@@ -197,6 +207,16 @@ wait:2000,PageDown,wait:1500,PageDown,wait:1500,Home,wait:1000,Esc
 wait:2000,Ctrl+H,wait:500,`hello`,Tab,`world`,Alt+A,wait:1500,Esc,wait:500,Esc
 ```
 
+### Find then navigate (close dialog first!)
+
+> **Rule:** If the next action after a find is editor navigation (CursorDown,
+> PageDown, etc.), close the find dialog with `Esc` first — otherwise nav keys
+> go to the dialog, not the document.
+
+```
+wait:2000,Ctrl+F,wait:500,`switch`,Enter,wait:500,Esc,wait:300,CursorDown,wait:500,PageDown
+```
+
 ### Menu-driven interaction
 
 ```
@@ -211,8 +231,19 @@ wait:2000,Ctrl+F,wait:500,`cursor`,Enter,wait:1500,Esc
 
 ### Subcommand CLI with --args
 
+> **⚠️ `--args` is a repeatable flag — one token per flag.** Do NOT pass multiple
+> args as a single quoted string. Each argv element needs its own `--args`:
+
 ```bash
-tuicast record --binary ./clet.exe --args "date" \
+# WRONG — passes "edit ./file.cs" as one argument:
+tuicast record --binary ./clet.exe --args "edit ./file.cs" ...
+
+# RIGHT — separate --args per token:
+tuicast record --binary ./clet.exe --args edit --args ./file.cs ...
+```
+
+```bash
+tuicast record --binary ./clet.exe --args date \
     --keystrokes "wait:2000,Home,`09101966`,wait:1500,Enter" \
     --name "clet-date" --open --copy
 ```
@@ -282,7 +313,7 @@ path.
 | `--drain` | No | 500 | Wait after last keystroke (ms) |
 | `--verbosity` | No | `normal` | `quiet`, `normal`, or `high` |
 | `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
-| `--args` | No | — | Arguments to pass to the binary |
+| `--args` | No | — | Argument to pass to the binary (repeatable: one `--args` per token) |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
 | `--open` | No | false | Open the GIF in the default viewer after recording |
 | `--copy` | No | false | Copy the GIF file path to the system clipboard |
@@ -294,26 +325,35 @@ path.
 When asked to "record <app> doing X", follow this process:
 
 1. **Read this document** for keystroke syntax and best practices.
-2. **Understand the target app's UI** — what keys does it respond to? What's its
+2. **Discover the binary** — on Windows, run `where.exe <name>` to find the full
+   path. Convert backslashes to forward slashes for `--binary`.
+3. **Understand the target app's UI** — what keys does it respond to? What's its
    quit key? What dialogs does it have? **Examine the app's source code** if
    available — look at View composition, tab order, key bindings, and control
    types (e.g. DateEditor, ColorPicker) to determine what keystrokes each control
-   accepts.
-3. **Plan the interaction** — break the demo into steps (launch → navigate →
+   accepts. For `clet` and similar Terminal.Gui apps, use `<app> help <cmd> --cat`
+   (not bare `help`, which launches a TUI viewer that hangs agent tools).
+4. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
-4. **Compose the keystroke string** — use waits generously between transitions.
+5. **Compose the keystroke string** — use waits generously between transitions.
    Use `--verbosity high` for agent-driven recordings to confirm keys are sent
    correctly.
-5. **Call `tuicast record --name <name> --open --copy`** with appropriate
+6. **Call `tuicast record --name <name> --open --copy`** with appropriate
    parameters. `--open` launches the GIF in the default viewer so the user sees
    the result immediately; `--copy` puts the GIF path on the clipboard. Always
    include both. The binary auto-downloads agg and creates the artifacts/
    directory as needed.
-6. **Verify the recording** — check the `.cast` file for expected output:
-   `grep "About" demo.cast` or `tail demo.cast` to confirm the final state.
-7. **If execution fails due to permissions**, output the full command for the user
+7. **Verify the recording** — **always** error-check the cast first:
+   ```bash
+   grep -iE "error|unknown|not found|usage:" <name>.cast
+   ```
+   A zero exit code and rendered GIF do NOT guarantee a good recording — the app
+   can error in-frame and tuicast still finishes. For CLI apps, also grep for
+   expected output (`grep "1966-09-10" demo.cast`). For TUI apps, the GIF is
+   the positive verification — pair it with the error-grep as the negative check.
+8. **If execution fails due to permissions**, output the full command for the user
    to run manually — do not loop retrying.
-8. **Report the output paths and the exact command used** back to the user so they
+9. **Report the output paths and the exact command used** back to the user so they
    can tweak and re-run.
 
 You do NOT need to know the exact pixel layout — TUIcast drives the app through
@@ -322,11 +362,15 @@ sequence to accomplish the demo goal.
 
 ### Terminal.Gui app defaults
 
-For any Terminal.Gui application (UICatalog, ted, etc.), always use:
+For any Terminal.Gui application (UICatalog, clet, ted, etc.), always use:
 
 ```powershell
 --kitty-keyboard --startup-delay 2000 --drain 2000
 ```
+
+**Tip:** Include the app version in `--title` for reproducibility:
+`--title "clet v1.0.0-alpha.6: Find and Fold"`. Behavior changes between
+alphas, and without a recorded version the GIF isn't reproducible.
 
 **Important:** `--startup-delay` already covers app boot time. Your keystroke
 script's leading `wait:` only needs to cover the visual pause you want viewers
@@ -355,6 +399,11 @@ menu), `F9` (Menu bar focus), `Esc` (close dialog/cancel).
 
 ### Terminal.Gui control keystroke recipes
 
+**TextView** — `Ctrl+F` find (if bound), `Esc` close find dialog, `Ctrl+M`
+fold/unfold (if bound). **Important:** keybindings depend on the host app's
+configuration — check the app's config file or source for actual bindings.
+Default TextView has no find/fold — apps bind these themselves.
+
 **DateEditor / DatePicker** — formatted fields auto-skip separators. Type digits
 only (not slashes). For Sept 10, 1966 in MM/dd/yyyy format: `Home,09101966`.
 
@@ -365,6 +414,17 @@ adjust values.
 
 **ListView / TableView** — `CursorUp`/`CursorDown` to navigate, `Enter` to
 select.
+
+### clet-specific notes
+
+- `clet help <alias>` launches a TUI viewer that will hang agent tools. Always
+  use `clet help <alias> --cat` to dump help to stdout instead.
+- `clet edit <file>` may show a file-access permission modal ("Allow once / Add
+  to config / Cancel") for files outside cwd. Either `cd` to the file's
+  directory first, or pass `--args --allow-file --args <dir>` to suppress it.
+- Default keybindings are limited (Ctrl+N/O/S/Q/Z/Y/X/C/V/A). Find and fold
+  may not be bound by default — check `~/.tui/clet.config.json` for user
+  bindings, or drive Find through `F9` → Edit → Find for portability.
 
 ### Notes on cast output noise
 
