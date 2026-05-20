@@ -254,6 +254,29 @@ tuicast record --binary ./my-app.exe --args date \
 wait:2000,click:15:3,wait:1000,click:40:10,wait:1500,Esc
 ```
 
+### Recording CLI commands in a shell
+
+For demos that show multiple CLI commands (not a TUI app), use a shell as
+`--binary` and type commands as literal text:
+
+```bash
+tuicast record \
+    --binary bash \
+    --name "ls-tutorial" \
+    --show-command '$ ls tutorial' \
+    --keystrokes "wait:500,`ls`,Enter,wait:1500,`ls -la`,Enter,wait:1500,`ls -lh`,Enter,wait:1500,`exit`,Enter" \
+    --keystroke-delay 50 \
+    --drain 1000 \
+    --open --copy
+```
+
+Notes:
+- Use `bash`, `powershell`, or `cmd` as the binary — not the command itself.
+- Type each command as a backtick literal followed by `Enter`.
+- Use `--keystroke-delay 50` so typing looks natural (default 200ms is slow).
+- End with `exit` (or `Ctrl+D`) to cleanly close the shell.
+- No `--kitty-keyboard` or `--startup-delay` needed (shells start instantly).
+
 ---
 
 ## Invoking the recording
