@@ -15,11 +15,11 @@ func TestParseScript(t *testing.T) {
 	}
 
 	want := []Action{
-		{Kind: Wait, Delay: 300 * time.Millisecond},
-		{Kind: Write, Sequence: "\x1b[<0;39;3M\x1b[<0;39;3m"},
-		{Kind: Write, Sequence: "\r"},
-		{Kind: Literal, Sequence: "hello,world"},
-		{Kind: Literal, Sequence: `slash\done`},
+		{Kind: Wait, Label: "wait:300", Delay: 300 * time.Millisecond},
+		{Kind: Write, Sequence: "\x1b[<0;39;3M\x1b[<0;39;3m", Label: "click:39:3"},
+		{Kind: Write, Sequence: "\r", Label: "Enter"},
+		{Kind: Literal, Sequence: "hello,world", Label: "hello,world"},
+		{Kind: Literal, Sequence: `slash\done`, Label: `slash\done`},
 	}
 
 	if !reflect.DeepEqual(actions, want) {
@@ -96,11 +96,11 @@ func TestParseTerminalGUIKeyStrings(t *testing.T) {
 	}
 
 	want := []Action{
-		{Kind: Write, Sequence: "\x1b[1;8A"},
-		{Kind: Write, Sequence: "\x03"},
-		{Kind: Write, Sequence: "\x01"},
-		{Kind: Write, Sequence: "\x1b[Z"},
-		{Kind: Write, Sequence: "4"},
+		{Kind: Write, Sequence: "\x1b[1;8A", Label: "ctrl+alt+shift+cursorup"},
+		{Kind: Write, Sequence: "\x03", Label: "Ctrl-c"},
+		{Kind: Write, Sequence: "\x01", Label: "A-Ctrl"},
+		{Kind: Write, Sequence: "\x1b[Z", Label: "Shift+Tab"},
+		{Kind: Write, Sequence: "4", Label: "D4"},
 	}
 
 	if !reflect.DeepEqual(actions, want) {
@@ -117,10 +117,10 @@ func TestParseLiteralThatStartsWithKeyPrefix(t *testing.T) {
 	}
 
 	want := []Action{
-		{Kind: Literal, Sequence: "Page title"},
-		{Kind: Literal, Sequence: "Arrow key"},
-		{Kind: Literal, Sequence: "Ctrl-C to stop"},
-		{Kind: Literal, Sequence: "Alt-text"},
+		{Kind: Literal, Sequence: "Page title", Label: "Page title"},
+		{Kind: Literal, Sequence: "Arrow key", Label: "Arrow key"},
+		{Kind: Literal, Sequence: "Ctrl-C to stop", Label: "Ctrl-C to stop"},
+		{Kind: Literal, Sequence: "Alt-text", Label: "Alt-text"},
 	}
 	if !reflect.DeepEqual(actions, want) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)

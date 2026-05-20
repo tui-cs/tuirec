@@ -85,9 +85,18 @@ v1 CLI usage:
 ```sh
 tuicast record \
   --binary ./myapp \
+  --show-command '$ myapp foo.cs' \
+  --startup-delay 1000 \
+  --input-delay 500 \
   --keystrokes "wait:2000,Tab,Enter,wait:1000,Ctrl+C" \
   --output demo.gif
 ```
+
+Use `--show-command` to add a synthetic shell prompt/command pre-roll to the
+GIF before the target app starts. `--startup-delay` waits after the target
+starts before copying its output and playing input, and `--input-delay` adds a
+default pause before the scripted keys begin. For troubleshooting,
+`--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
 
 Key tokens use Terminal.Gui's persisted `Key.ToString()` / `Key.TryParse()`
 format. `Ctrl+C`, `Ctrl-C`, `A-Ctrl`, `Shift+Tab`, `Ctrl+Alt+Shift+CursorUp`,

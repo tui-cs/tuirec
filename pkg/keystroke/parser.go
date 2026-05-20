@@ -23,6 +23,7 @@ const (
 type Action struct {
 	Kind     Kind
 	Sequence string
+	Label    string
 	Delay    time.Duration
 }
 
@@ -52,11 +53,11 @@ func parseToken(token string) (Action, error) {
 			return Action{}, err
 		}
 
-		return Action{Kind: Wait, Delay: time.Duration(milliseconds) * time.Millisecond}, nil
+		return Action{Kind: Wait, Label: token, Delay: time.Duration(milliseconds) * time.Millisecond}, nil
 	}
 
 	if sequence, ok, err := parseClick(token); ok || err != nil {
-		return Action{Kind: Write, Sequence: sequence}, err
+		return Action{Kind: Write, Sequence: sequence, Label: token}, err
 	}
 
 	if sequence, ok, err := resolveTerminalGUIKey(token); ok || err != nil {
@@ -64,14 +65,14 @@ func parseToken(token string) (Action, error) {
 			return Action{}, err
 		}
 
-		return Action{Kind: Write, Sequence: sequence}, nil
+		return Action{Kind: Write, Sequence: sequence, Label: token}, nil
 	}
 
 	if looksLikeKey(token) {
 		return Action{}, fmt.Errorf("unknown key: %s", token)
 	}
 
-	return Action{Kind: Literal, Sequence: token}, nil
+	return Action{Kind: Literal, Sequence: token, Label: token}, nil
 }
 
 func parseWait(token string) (int, bool, error) {

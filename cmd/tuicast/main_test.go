@@ -27,6 +27,11 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 		"--cast-output", "demo.cast",
 		"--keystrokes", "wait:10,Ctrl+Q",
 		"--keystroke-delay", "25",
+		"--input-delay", "1000",
+		"--startup-delay", "1500",
+		"--show-command", "PS> demo-app",
+		"--show-command-delay", "15",
+		"--show-command-hold", "250",
 		"--cols", "80",
 		"--rows", "24",
 		"--theme", "dracula",
@@ -38,6 +43,7 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 		"--title", "Demo",
 		"--agg-path", "agg-bin",
 		"--drain", "750",
+		"--verbosity", "high",
 	}, cliOptions{
 		stdout: stdout,
 		stderr: &bytes.Buffer{},
@@ -71,6 +77,24 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 	if got.KeystrokeDelay.String() != "25ms" {
 		t.Fatalf("KeystrokeDelay = %s", got.KeystrokeDelay)
 	}
+	if got.InputDelay.String() != "1s" {
+		t.Fatalf("InputDelay = %s", got.InputDelay)
+	}
+	if got.StartupDelay.String() != "1.5s" {
+		t.Fatalf("StartupDelay = %s", got.StartupDelay)
+	}
+	if got.ShowCommand != "PS> demo-app" {
+		t.Fatalf("ShowCommand = %q", got.ShowCommand)
+	}
+	if got.CommandDelay.String() != "15ms" {
+		t.Fatalf("CommandDelay = %s", got.CommandDelay)
+	}
+	if got.CommandHold.String() != "250ms" {
+		t.Fatalf("CommandHold = %s", got.CommandHold)
+	}
+	if !got.Verbose {
+		t.Fatal("Verbose = false, want true")
+	}
 	if got.MaxDuration.String() != "7s" {
 		t.Fatalf("MaxDuration = %s", got.MaxDuration)
 	}
@@ -91,6 +115,38 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "Wrote demo.gif") || !strings.Contains(output, "Wrote demo.cast") {
 		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestRecordCommandAllowsZeroShowCommandPacing(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--show-command", "PS> demo-app",
+		"--show-command-delay", "0",
+		"--show-command-hold", "0",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+	if got.CommandDelay != 0 {
+		t.Fatalf("CommandDelay = %s, want 0", got.CommandDelay)
+	}
+	if got.CommandHold != 0 {
+		t.Fatalf("CommandHold = %s, want 0", got.CommandHold)
 	}
 }
 
@@ -253,6 +309,11 @@ func TestRecordCommandExitCodes(t *testing.T) {
 			want: exitUsage,
 		},
 		{
+			name: "usage invalid verbosity",
+			args: []string{"record", "--binary", "demo-app", "--verbosity", "loud"},
+			want: exitUsage,
+		},
+		{
 			name: "missing prerequisite",
 			args: []string{"record", "--binary", "demo-app"},
 			look: func(string) (string, error) {
@@ -333,6 +394,10 @@ func TestRecordHelpSnapshot(t *testing.T) {
 		"Record a terminal app",
 		"Terminal.Gui Key strings",
 		"Ctrl+Alt+Shift+CursorUp",
+		"--show-command string",
+		"--startup-delay int",
+		"--input-delay int",
+		"--verbosity string",
 		"--binary string",
 		"--keystrokes string",
 		"--cast-output string",

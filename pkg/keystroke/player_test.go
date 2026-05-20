@@ -3,6 +3,7 @@ package keystroke
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -47,6 +48,39 @@ func TestPlayerParsesScript(t *testing.T) {
 
 	if output.String() != "A\r" {
 		t.Fatalf("output = %q, want %q", output.String(), "A\r")
+	}
+}
+
+func TestPlayerLogsActionsAndPacing(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	var log bytes.Buffer
+	sleeper := &recordingSleeper{}
+	player := NewPlayer(&output, sleeper, 25*time.Millisecond, WithLogWriter(&log))
+
+	actions := []Action{
+		{Kind: Write, Sequence: "\x11", Label: "Ctrl+Q"},
+		{Kind: Wait, Label: "wait:100", Delay: 100 * time.Millisecond},
+		{Kind: Literal, Sequence: "ab", Label: "ab"},
+	}
+
+	if err := player.PlayActions(actions); err != nil {
+		t.Fatalf("PlayActions: %v", err)
+	}
+
+	got := log.String()
+	for _, want := range []string{
+		"tuicast: key Ctrl+Q",
+		"delay 25ms",
+		"tuicast: wait wait:100 (100ms)",
+		"tuicast: literal 'a'",
+		"tuicast: literal delay 25ms",
+		"tuicast: literal 'b'",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("log missing %q:\n%s", want, got)
+		}
 	}
 }
 

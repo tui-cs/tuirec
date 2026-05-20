@@ -47,12 +47,19 @@ type Config struct {
 	Title          string
 	Keystrokes     string
 	KeystrokeDelay time.Duration
+	InputDelay     time.Duration
+	StartupDelay   time.Duration
+	ShowCommand    string
+	CommandDelay   time.Duration
+	CommandHold    time.Duration
 	MaxDuration    time.Duration
 	DrainDuration  time.Duration
 	Clock          recorder.Clock
 	Timestamp      time.Time
 	GIF            gif.Config
 	Renderer       Renderer
+	LogWriter      io.Writer
+	Verbose        bool
 }
 
 // Result describes files produced by a recording run.
@@ -69,7 +76,8 @@ type contextWriter struct {
 }
 
 type contextSleeper struct {
-	ctx context.Context
+	ctx   context.Context
+	clock recorder.Clock
 }
 
 type stopSource int
@@ -117,6 +125,10 @@ func Run(parent context.Context, config Config) (Result, error) {
 	}
 	defer castRecorder.Close()
 
+	if err := writeCommandPreRoll(ctx, castRecorder, config); err != nil {
+		return Result{}, err
+	}
+
 	session, err := startPTY(config.Binary, config.Args, config.Size, pty.Options{
 		Dir: config.Dir,
 		Env: config.Env,
@@ -126,14 +138,18 @@ func Run(parent context.Context, config Config) (Result, error) {
 	}
 	defer session.Close()
 
+	waitDone := make(chan error, 1)
+	go waitSession(ctx, session, waitDone)
+
+	if err := waitWithLog(ctx, config.StartupDelay, config.Clock, config, "startup delay"); err != nil {
+		return Result{}, err
+	}
+
 	readDone := make(chan error, 1)
 	go copyPTY(session, castRecorder, readDone)
 
 	playerDone := make(chan error, 1)
-	go playKeystrokes(ctx, session, actions, config.KeystrokeDelay, playerDone)
-
-	waitDone := make(chan error, 1)
-	go waitSession(ctx, session, waitDone)
+	go playKeystrokes(ctx, session, actions, config, playerDone)
 
 	runErr, source := waitForStop(ctx, playerDone, readDone, waitDone, config.DrainDuration)
 	cancel()
@@ -213,6 +229,30 @@ func normalizeConfig(config Config) Config {
 	return config
 }
 
+func writeCommandPreRoll(ctx context.Context, writer io.Writer, config Config) error {
+	if config.ShowCommand == "" {
+		return nil
+	}
+
+	logf(config, "show command %q\n", config.ShowCommand)
+	for _, r := range config.ShowCommand {
+		logf(config, "show-command type %q; delay %s\n", r, config.CommandDelay)
+		if _, err := io.WriteString(writer, string(r)); err != nil {
+			return fmt.Errorf("write command pre-roll: %w", err)
+		}
+		if err := wait(ctx, config.CommandDelay, config.Clock); err != nil {
+			return err
+		}
+	}
+
+	if _, err := io.WriteString(writer, "\r\n"); err != nil {
+		return fmt.Errorf("write command pre-roll enter: %w", err)
+	}
+
+	logf(config, "show-command hold %s\n", config.CommandHold)
+	return wait(ctx, config.CommandHold, config.Clock)
+}
+
 func copyPTY(reader io.Reader, writer io.Writer, done chan<- error) {
 	buffer := make([]byte, 4096)
 	for {
@@ -237,8 +277,24 @@ func copyPTY(reader io.Reader, writer io.Writer, done chan<- error) {
 	}
 }
 
-func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.Action, keystrokeDelay time.Duration, done chan<- error) {
-	player := keystroke.NewPlayer(contextWriter{ctx: ctx, writer: writer}, contextSleeper{ctx: ctx}, keystrokeDelay)
+func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.Action, config Config, done chan<- error) {
+	if err := waitWithLog(ctx, config.InputDelay, config.Clock, config, "input delay"); err != nil {
+		done <- err
+
+		return
+	}
+
+	options := []keystroke.PlayerOption{}
+	if config.Verbose && config.LogWriter != nil {
+		options = append(options, keystroke.WithLogWriter(config.LogWriter))
+	}
+
+	player := keystroke.NewPlayer(
+		contextWriter{ctx: ctx, writer: writer},
+		contextSleeper{ctx: ctx, clock: config.Clock},
+		config.KeystrokeDelay,
+		options...,
+	)
 	done <- player.PlayActions(actions)
 }
 
@@ -269,7 +325,7 @@ func waitForStop(ctx context.Context, playerDone, readDone, waitDone <-chan erro
 	select {
 	case err := <-playerDone:
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, ErrMaxDuration) {
 				return ErrMaxDuration, sourcePlayer
 			}
 
@@ -290,6 +346,39 @@ func waitForStop(ctx context.Context, playerDone, readDone, waitDone <-chan erro
 }
 
 func drain(ctx context.Context, duration time.Duration) error {
+	return wait(ctx, duration, nil)
+}
+
+func waitWithLog(ctx context.Context, duration time.Duration, clock recorder.Clock, config Config, label string) error {
+	if duration <= 0 {
+		return nil
+	}
+
+	logf(config, "%s %s\n", label, duration)
+	return wait(ctx, duration, clock)
+}
+
+func wait(ctx context.Context, duration time.Duration, clock recorder.Clock) error {
+	if duration <= 0 {
+		return nil
+	}
+
+	select {
+	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return ErrMaxDuration
+		}
+
+		return ctx.Err()
+	default:
+	}
+
+	if advanceClock, ok := clock.(interface{ Advance(time.Duration) }); ok {
+		advanceClock.Advance(duration)
+
+		return nil
+	}
+
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
 
@@ -303,6 +392,14 @@ func drain(ctx context.Context, duration time.Duration) error {
 
 		return ctx.Err()
 	}
+}
+
+func logf(config Config, format string, args ...any) {
+	if !config.Verbose || config.LogWriter == nil {
+		return
+	}
+
+	fmt.Fprintf(config.LogWriter, "tuicast: "+format, args...)
 }
 
 func (r gifRenderer) Render(ctx context.Context, castPath, outputPath string, config gif.Config) error {
@@ -327,11 +424,5 @@ func (w contextWriter) Write(p []byte) (int, error) {
 }
 
 func (s contextSleeper) Sleep(duration time.Duration) {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-
-	select {
-	case <-timer.C:
-	case <-s.ctx.Done():
-	}
+	_ = wait(s.ctx, duration, s.clock)
 }
