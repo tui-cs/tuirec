@@ -60,10 +60,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 ### Known gotchas
 
 - **Always use absolute paths or `./` prefix for `--binary`** on Windows.
-  Bare names like `--binary "clet.exe"` fail with a Go security error. Use
-  `--binary ./clet.exe` or `--binary C:/path/to/clet.exe`. **Windows agents:**
+  Bare names like `--binary "myapp.exe"` fail with a Go security error. Use
+  `--binary ./myapp.exe` or `--binary C:/path/to/myapp.exe`. **Windows agents:**
   discover the path with `where.exe <name>`, then convert backslashes to forward
-  slashes (`C:/Users/Tig/.dotnet/tools/clet.exe`) — backslash paths get mangled
+  slashes (`C:/Users/me/tools/myapp.exe`) — backslash paths get mangled
   when invoked via bash-style shells.
 - **`--show-command` format** — TUIcast renders exactly what you provide. Include
   the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
@@ -236,16 +236,16 @@ wait:2000,Ctrl+F,wait:500,`cursor`,Enter,wait:1500,Esc
 
 ```bash
 # WRONG — passes "edit ./file.cs" as one argument:
-tuicast record --binary ./clet.exe --args "edit ./file.cs" ...
+tuicast record --binary ./my-app.exe --args "edit ./file.cs" ...
 
 # RIGHT — separate --args per token:
-tuicast record --binary ./clet.exe --args edit --args ./file.cs ...
+tuicast record --binary ./my-app.exe --args edit --args ./file.cs ...
 ```
 
 ```bash
-tuicast record --binary ./clet.exe --args date \
+tuicast record --binary ./my-app.exe --args date \
     --keystrokes "wait:2000,Home,`09101966`,wait:1500,Enter" \
-    --name "clet-date" --open --copy
+    --name "app-date" --open --copy
 ```
 
 ### Mouse click demo
@@ -331,8 +331,9 @@ When asked to "record <app> doing X", follow this process:
    quit key? What dialogs does it have? **Examine the app's source code** if
    available — look at View composition, tab order, key bindings, and control
    types (e.g. DateEditor, ColorPicker) to determine what keystrokes each control
-   accepts. For `clet` and similar Terminal.Gui apps, use `<app> help <cmd> --cat`
-   (not bare `help`, which launches a TUI viewer that hangs agent tools).
+   accepts. For Terminal.Gui apps with built-in help viewers, prefer
+   `<app> help <cmd> --cat` (or equivalent) to dump help to stdout — interactive
+   help viewers will hang agent tools.
 4. **Plan the interaction** — break the demo into steps (launch → navigate →
    perform action → show result → close).
 5. **Compose the keystroke string** — use waits generously between transitions.
@@ -362,14 +363,14 @@ sequence to accomplish the demo goal.
 
 ### Terminal.Gui app defaults
 
-For any Terminal.Gui application (UICatalog, clet, ted, etc.), always use:
+For any Terminal.Gui application (UICatalog, ted, etc.), always use:
 
 ```powershell
 --kitty-keyboard --startup-delay 2000 --drain 2000
 ```
 
 **Tip:** Include the app version in `--title` for reproducibility:
-`--title "clet v1.0.0-alpha.6: Find and Fold"`. Behavior changes between
+`--title "my-app v1.2.3: Find and Fold"`. Behavior changes between
 alphas, and without a recorded version the GIF isn't reproducible.
 
 **Important:** `--startup-delay` already covers app boot time. Your keystroke
@@ -414,17 +415,6 @@ adjust values.
 
 **ListView / TableView** — `CursorUp`/`CursorDown` to navigate, `Enter` to
 select.
-
-### clet-specific notes
-
-- `clet help <alias>` launches a TUI viewer that will hang agent tools. Always
-  use `clet help <alias> --cat` to dump help to stdout instead.
-- `clet edit <file>` may show a file-access permission modal ("Allow once / Add
-  to config / Cancel") for files outside cwd. Either `cd` to the file's
-  directory first, or pass `--args --allow-file --args <dir>` to suppress it.
-- Default keybindings are limited (Ctrl+N/O/S/Q/Z/Y/X/C/V/A). Find and fold
-  may not be bound by default — check `~/.tui/clet.config.json` for user
-  bindings, or drive Find through `F9` → Edit → Find for portability.
 
 ### Notes on cast output noise
 
