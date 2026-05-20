@@ -2,12 +2,13 @@
 
 This document teaches an AI agent how to compose TUIcast keystroke scripts for
 recording any terminal application. Any AI system (Claude, Copilot, Codex, etc.)
-can use this as context to drive `record-app.ps1` or `tuicast record` directly.
+can use this as context to drive `tuicast record` directly.
 
 ## Quick start
 
 ```bash
-tuicast record \
+# From the TUIcast repo root (after `go build ./cmd/tuicast`):
+./tuicast record \
     --binary "./my-app" \
     --name "search-replace" \
     --title "my-app: find and replace" \
@@ -17,6 +18,10 @@ tuicast record \
 
 > **Note:** `tuicast record` auto-downloads `agg` if not found on PATH or in the
 > cache (`~/.cache/tuicast/agg-v1.5.0/`). No separate setup needed.
+>
+> **From source:** If `tuicast` is not on PATH, build it first with
+> `go build -o tuicast.exe ./cmd/tuicast` (Windows) or
+> `go build -o tuicast ./cmd/tuicast` (Unix), then invoke via `./tuicast`.
 
 ---
 
@@ -52,26 +57,38 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 
 ### Known gotchas
 
-- ⚠️ **`cursor`, `page`, `arrow` as literal text** — the parser treats these as
-  key-like prefixes (matching `CursorUp`, `PageDown`, etc.). If you need to
-  type them literally, split across token boundaries: `cur,sor` types "cursor",
-  `pa,ge` types "page". This is especially common when searching in Terminal.Gui
-  apps where "cursor" is a frequent term. **Note:** splitting inserts one
-  `--keystroke-delay` pause at the split point (between `r` and `s`). Use
-  `--keystroke-delay 50` to minimize the visible gap when splitting words.
+- ⚠️ **`cursor`, `page`, `arrow` as literal text** — the parser recognizes
+  these as prefixes of key names (`CursorUp`, `PageDown`, `ArrowLeft`). A bare
+  token that equals "cursor", "page", or "arrow" exactly is treated as literal
+  (it's too short to be a key name), but **Terminal.Gui's `Key.TryParse` might
+  accept it in a future version**. Defensive best practice: always split across
+  token boundaries: `cur,sor` types "cursor", `pa,ge` types "page".
+  **Note:** splitting inserts one `--keystroke-delay` pause at the split point.
+  Use `--keystroke-delay 50` to minimize the visible gap when splitting words.
+- **When is a token literal?** Any alphanumeric token that doesn't match a known
+  key name (`Enter`, `Esc`, `F1`, `CursorUp`, etc.) and doesn't match the
+  `wait:N` or `click:col:row` patterns is typed as literal text. Short tokens
+  like `de`, `ab`, `foo` are always safe. Only worry about tokens that *start
+  with* `Cursor`, `Page`, `Arrow` followed by more characters — those resolve
+  as key names.
 - **`--agg-path` is required** unless `agg` is on your system PATH. **Always
   pass `--agg-path ~/tools/agg.exe`** (Windows) or `--agg-path ~/tools/agg`
   (Unix) when calling `tuicast record` directly.
 - **`--show-command` format** — TUIcast renders exactly what you provide. Include
   the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
-  TUIcast does not add its own prompt decoration.
+  TUIcast does not add its own prompt decoration. **Windows/PowerShell note:**
+  use single quotes to prevent `$` interpolation:
+  `--show-command '$ myapp'` — double quotes would require backtick-escaping
+  `` --show-command "`$ myapp" ``.
 - **`--show-command` with alt-screen apps** — works correctly (pre-roll enters
   alt-screen automatically), but the synthetic prompt frame will be brief. Omit
   it if the app's own UI is the focus.
 - **`--keystroke-delay` affects literal text too** — each character in a literal
   token gets the inter-key delay (default 200ms). Characters *within* a single
   token are paced by `--keystroke-delay`; the same delay also applies at token
-  boundaries. For fast typing sequences, use `--keystroke-delay 50` or shorter.
+  boundaries. **Rule of thumb:** budget `n × 200ms` per literal word at default
+  delay (e.g. "cursor" = 6 chars × 200ms = 1.2s). For typing-heavy scripts, use
+  `--keystroke-delay 50` or shorter to keep total recording time reasonable.
 - **If `record-app.ps1` is blocked** by execution policy or permissions, fall
   back to calling `tuicast.exe record` directly with equivalent flags. If
   PowerShell's `&` call operator is also blocked, wrap in `cmd /c`:
@@ -157,8 +174,9 @@ wait:2000,Alt+F,wait:400,O,wait:600,./myfile.txt,Enter,wait:2000,Esc
 wait:2000,Ctrl+F,wait:500,cur,sor,Enter,wait:1500,Esc
 ```
 
-Note: `cursor` must be split as `cur,sor` because the parser treats it as a
-key-like prefix (see Known gotchas). Same applies to `page` → `pa,ge`.
+Note: `cursor` is split as `cur,sor` as a defensive measure — the parser
+currently treats bare `cursor` as literal, but `Key.TryParse` could accept it
+in the future. Same applies to `page` → `pa,ge`.
 
 ### Mouse click demo
 
@@ -252,8 +270,12 @@ sequence to accomplish the demo goal.
 For any Terminal.Gui application (UICatalog, ted, etc.), always use:
 
 ```powershell
---kitty-keyboard --startup-delay 2000 --drain 2000 --cols 120 --rows 30
+--kitty-keyboard --startup-delay 2000 --drain 2000
 ```
+
+The default `--cols 120 --rows 30` is appropriate for most demos. Increase rows
+for apps with tall content (e.g. `--rows 40` for log viewers) or cols for wide
+tables.
 
 The binary is typically at:
 ```
