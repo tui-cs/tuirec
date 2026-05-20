@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/gif"
-	"github.com/gui-cs/TUIcast/pkg/pty"
-	"github.com/gui-cs/TUIcast/pkg/recorder"
+	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/pty"
+	"github.com/gui-cs/tuirec/pkg/recorder"
 )
 
 func TestRunRecordsKeystrokesAndRenders(t *testing.T) {
@@ -136,10 +136,10 @@ func TestRunHighVerbosityLogsPacing(t *testing.T) {
 
 	got := log.String()
 	for _, want := range []string{
-		`tuicast: show command "PS> fake-app"`,
-		"tuicast: startup delay 1ms",
-		"tuicast: input delay 2ms",
-		"tuicast: key Ctrl+Q",
+		`tuirec: show command "PS> fake-app"`,
+		"tuirec: startup delay 1ms",
+		"tuirec: input delay 2ms",
+		"tuirec: key Ctrl+Q",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log missing %q:\n%s", want, got)

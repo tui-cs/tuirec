@@ -1,4 +1,4 @@
-module github.com/gui-cs/TUIcast
+module github.com/gui-cs/tuirec
 
 go 1.22
 

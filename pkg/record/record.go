@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/gui-cs/TUIcast/pkg/gif"
-	"github.com/gui-cs/TUIcast/pkg/keystroke"
-	"github.com/gui-cs/TUIcast/pkg/pty"
-	"github.com/gui-cs/TUIcast/pkg/recorder"
+	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/gui-cs/tuirec/pkg/keystroke"
+	"github.com/gui-cs/tuirec/pkg/pty"
+	"github.com/gui-cs/tuirec/pkg/recorder"
 )
 
 const (
@@ -414,7 +414,7 @@ func logf(config Config, format string, args ...any) {
 		return
 	}
 
-	fmt.Fprintf(config.LogWriter, "tuicast: "+format, args...)
+	fmt.Fprintf(config.LogWriter, "tuirec: "+format, args...)
 }
 
 func (r gifRenderer) Render(ctx context.Context, castPath, outputPath string, config gif.Config) error {
