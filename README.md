@@ -118,10 +118,6 @@ Key names use Terminal.Gui's `Key.ToString()` / `Key.TryParse()` format.
 Multi-character literal text **must** be backtick-quoted. Single characters
 work without quoting. Unknown bare tokens produce a clear error with guidance.
 
-## Status
-
-🚧 **Pre-alpha** — rewriting from Node.js prototype to Go. See [spec.md](spec.md) for the v1 plan.
-
 ## For AI Agents
 
 TUIcast is designed to be driven by AI coding agents. Run:
