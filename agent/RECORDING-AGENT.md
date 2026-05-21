@@ -44,6 +44,7 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 | **Double click** | `doubleclick:10:5` | Two rapid left clicks at column:row (1-based) |
 | **Scroll** | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel up/down at column:row (1-based) |
 | **Drag** | `drag:1:1:40:20` | Left-button drag from col1:row1 to col2:row2 (1-based) |
+| **Mouse move / hover** | `move:85:1`, `hover:70:2` | Move pointer to col:row (triggers hover effects in TUIs with mouse tracking) |
 | **Literal text** | `` `hello world` `` | Backtick-quoted text, typed character-by-character |
 
 ### Rules

@@ -115,6 +115,8 @@ func parseMouse(token string) (string, bool, error) {
 		return parseScroll(token)
 	case strings.HasPrefix(token, "drag:"):
 		return parseDrag(token)
+	case strings.HasPrefix(token, "move:") || strings.HasPrefix(token, "hover:"):
+		return parseMouseMove(token)
 	default:
 		return "", false, nil
 	}
@@ -196,6 +198,22 @@ func parseDrag(token string) (string, bool, error) {
 		sgrPress(32, col2, row2) +
 		sgrRelease(0, col2, row2)
 	return seq, true, nil
+}
+
+// parseMouseMove handles move: or hover: tokens for mouse motion events (used
+// to trigger hover effects in TUIs that support mouse tracking).
+func parseMouseMove(token string) (string, bool, error) {
+	prefix := "move:"
+	if strings.HasPrefix(token, "hover:") {
+		prefix = "hover:"
+	}
+	value := token[len(prefix):]
+	col, row, err := parseColRow(value, token)
+	if err != nil {
+		return "", true, err
+	}
+	// SGR extended mouse motion event (32 = motion flag, M = button press/motion).
+	return fmt.Sprintf("\x1b[<32;%d;%dM", col, row), true, nil
 }
 
 func parseColRow(value, token string) (int, int, error) {
