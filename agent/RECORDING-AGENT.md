@@ -44,6 +44,7 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 | **Double click** | `doubleclick:10:5` | Two rapid left clicks at column:row (1-based) |
 | **Scroll** | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel up/down at column:row (1-based) |
 | **Drag** | `drag:1:1:40:20` | Left-button drag from col1:row1 to col2:row2 (1-based) |
+| **Mouse move / hover** | `move:85:2`, `hover:70:1` | Move the pointer (triggers hover states, highlights, and tooltips in supporting TUIs) |
 | **Literal text** | `` `hello world` `` | Backtick-quoted text, typed character-by-character |
 
 ### Rules
@@ -294,6 +295,57 @@ wait:2000,scroll:down:60:15,wait:300,scroll:down:60:15,wait:500,scroll:up:60:15,
 ```
 wait:2000,drag:5:10:40:10,wait:1000,rightclick:20:10,wait:500,Esc
 ```
+
+### Hover and mouse movement
+
+Many modern TUIs (Grok Build, Claude Code, Cursor, etc.) use hover states for status indicators, token usage meters, and input highlights. Use `move:` or `hover:` to position the mouse without a button press:
+
+```bash
+wait:2000,hover:85:2,wait:800,hover:92:2,wait:600   # hover top-right token/%
+wait:500,hover:25:24,wait:500                       # hover the prompt input area
+```
+
+- `move:` and `hover:` are aliases and emit the same SGR motion report.
+- Hover effects are often subtle (background change, text update, or small popup). Use `--verbosity high` + inspect the `.cast` to verify the app actually repainted.
+- Some TUIs only enable full mouse tracking after the first real user action or after entering the main view.
+
+### Discovering widget coordinates
+
+When recording an unfamiliar TUI, you rarely know the exact column:row of the widget you want to click or hover.
+
+Recommended workflow:
+
+1. Record a short "UI snapshot" with generous startup wait and early `Ctrl+Q,Ctrl+Q`.
+2. Keep `--cast-output` (do not let tuirec delete it).
+3. Parse the cast for recognizable text + cursor positioning sequences (e.g. `\u001b[2;89H1.03%`).
+4. Try a grid of `hover:` or `click:` values with `--verbosity high` and watch which ones produce new output events in the cast.
+5. Once you have the hot spot, lock it into your final recording script.
+
+Example discovery commands:
+
+```bash
+tuirec record --binary ./my-tui --name "ui-snapshot" \
+    --keystrokes 'wait:8000,Ctrl+Q,wait:150,Ctrl+Q' \
+    --cast-output ui-snapshot.cast --verbosity high
+```
+
+Then use Python or `grep` on the `.cast` to find interesting screen regions.
+
+### Recording AI-powered TUIs (Grok Build, Claude Code, etc.)
+
+AI coding TUIs have different timing characteristics than traditional TUIs:
+
+- Project indexing / context loading can take 3–15 seconds on first start.
+- Sending a prompt and receiving a full response is highly variable (5–30s+).
+- The app may stream output, update a token counter live, or show thinking steps.
+
+Tips that have proven useful:
+
+- Use **very generous** waits after `Enter` (start with `wait:12000`–`wait:20000` and adjust after inspecting the cast).
+- Set `--max-duration 60` or higher as a safety net.
+- Prefer `--name` + explicit `--cast-output` so you can study the exact frame timings.
+- If the TUI does heavy work on startup, consider `--startup-delay 2000` + a long initial `wait:`.
+- For hover demos on live status (token %, model name, etc.), wait until *after* the first assistant response so the indicator has a non-zero value.
 
 ### Recording CLI commands in a shell
 
