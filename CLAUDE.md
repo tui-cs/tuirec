@@ -86,6 +86,19 @@ The boundary between packages matters:
 - `pkg/gif` — only agg invocation (no PTY or recorder knowledge)
 - `pkg/record` — orchestration; the only package that imports all others
 
+### Generated / Synced Files
+
+| Source of truth | Generated copy | Mechanism |
+|-----------------|----------------|-----------|
+| `agent/RECORDING-AGENT.md` | `cmd/tuirec/agent-guide.md` | `//go:generate cp ../../agent/RECORDING-AGENT.md agent-guide.md` |
+
+**`agent/RECORDING-AGENT.md`** is the canonical keystroke-syntax guide for AI agents driving `tuirec record`. It is `//go:embed`'d into the binary (via its copy at `cmd/tuirec/agent-guide.md`) and served by the `tuirec agent-guide` subcommand.
+
+Rules:
+- **Only edit `agent/RECORDING-AGENT.md`.** Never edit `cmd/tuirec/agent-guide.md` directly.
+- After changing the source, run `go generate ./cmd/tuirec/...` to refresh the copy.
+- If you update both files in a PR, they must be byte-identical. CI will fail on drift.
+
 ## Coding Standards
 
 Standard Go. Follow:
