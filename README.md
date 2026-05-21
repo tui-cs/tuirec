@@ -129,7 +129,12 @@ Tokens are comma-separated. Each token is one of:
 | Modifier combo | `Ctrl+C`, `Alt+A`, `Shift+Tab` | Modifier + key |
 | Wait | `wait:2000` | Pause N milliseconds |
 | Literal text | `` `hello world` `` | Backtick-quoted, typed char-by-char |
-| Mouse click | `click:10:5` | SGR click at col:row |
+| Mouse click | `click:10:5` | SGR left click at col:row (1-based) |
+| Right click | `rightclick:10:5` | SGR right click at col:row |
+| Middle click | `middleclick:10:5` | SGR middle click at col:row |
+| Double click | `doubleclick:10:5` | Two rapid left clicks at col:row |
+| Scroll | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel at col:row |
+| Drag | `drag:1:1:40:20` | Drag from col1:row1 to col2:row2 |
 
 Key names use Terminal.Gui's `Key.ToString()` / `Key.TryParse()` format.
 Multi-character literal text **must** be backtick-quoted. Single characters
