@@ -99,6 +99,24 @@ func TestPlayerNilWriterReturnsError(t *testing.T) {
 	}
 }
 
+func TestPlayerMouseEventsWithKittyKeyboard(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	sleeper := &recordingSleeper{}
+	player := NewPlayer(&output, sleeper, 10*time.Millisecond, WithKittyKeyboard())
+
+	// Mouse events should pass through unchanged even in kitty mode.
+	if err := player.Play("click:5:3,rightclick:10:2,scroll:up:1:1"); err != nil {
+		t.Fatalf("Play: %v", err)
+	}
+
+	want := "\x1b[<0;5;3M\x1b[<0;5;3m" + "\x1b[<2;10;2M\x1b[<2;10;2m" + "\x1b[<64;1;1M"
+	if output.String() != want {
+		t.Fatalf("output = %q, want %q", output.String(), want)
+	}
+}
+
 type recordingSleeper struct {
 	sleeps []time.Duration
 }

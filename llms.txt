@@ -27,7 +27,8 @@ Run `tuirec agent-guide` to get the full keystroke syntax reference,
 best practices, and examples for AI-driven recordings.
 
 The guide covers:
-- Keystroke script syntax (wait:N, named keys, modifiers, literal text, mouse)
+- Keystroke script syntax (wait:N, named keys, modifiers, literal text, mouse events)
+- Mouse events: click, rightclick, middleclick, doubleclick, scroll:up/down, drag
 - Terminal.Gui app defaults (--kitty-keyboard, --startup-delay, etc.)
 - Known gotchas (cursor/page/arrow literal splitting, --agg-path requirement)
 - Composing demo recordings step by step
@@ -37,7 +38,7 @@ The guide covers:
 | Flag | Description |
 |------|-------------|
 | --binary | Path to executable to record |
-| --keystrokes | Comma-separated script (wait:N, key names, literal text) |
+| --keystrokes | Comma-separated script (wait:N, key names, mouse events, literal text) |
 | --output | Output GIF path |
 | --cast-output | Also save raw .cast file |
 | --show-command | Synthetic shell prompt pre-roll |

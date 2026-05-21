@@ -38,7 +38,12 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 | **Arrow/nav** | `CursorUp`, `CursorDown`, `CursorLeft`, `CursorRight`, `Home`, `End`, `PageUp`, `PageDown` | Navigation keys |
 | **Function key** | `F1`—`F12` | Function keys |
 | **Modifier combo** | `Ctrl+S`, `Ctrl+Shift+Z`, `Alt+A`, `Shift+Tab`, `Ctrl+Alt+Shift+CursorUp` | Modifier + key |
-| **Mouse click** | `click:10:5` | SGR mouse click at column:row (1-based) |
+| **Mouse click** | `click:10:5` | SGR left click at column:row (1-based) |
+| **Right click** | `rightclick:10:5` | SGR right click at column:row (1-based) |
+| **Middle click** | `middleclick:10:5` | SGR middle click at column:row (1-based) |
+| **Double click** | `doubleclick:10:5` | Two rapid left clicks at column:row (1-based) |
+| **Scroll** | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel up/down at column:row (1-based) |
+| **Drag** | `drag:1:1:40:20` | Left-button drag from col1:row1 to col2:row2 (1-based) |
 | **Literal text** | `` `hello world` `` | Backtick-quoted text, typed character-by-character |
 
 ### Rules
@@ -274,6 +279,20 @@ tuirec record --binary ./my-app.exe --args date \
 
 ```
 wait:2000,click:15:3,wait:1000,click:40:10,wait:1500,Esc
+```
+
+### Mouse events — dropdown, scroll, drag
+
+```
+wait:2000,click:19:30,wait:800,g,wait:500,Enter,wait:1500,Ctrl+Q
+```
+
+```
+wait:2000,scroll:down:60:15,wait:300,scroll:down:60:15,wait:500,scroll:up:60:15,wait:500,Esc
+```
+
+```
+wait:2000,drag:5:10:40:10,wait:1000,rightclick:20:10,wait:500,Esc
 ```
 
 ### Recording CLI commands in a shell
