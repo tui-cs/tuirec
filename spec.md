@@ -224,9 +224,15 @@ section verbatim.**
 
 ```
 script   = token { "," token } ;
-token    = wait | click | namedkey | literal ;
+token    = wait | mouse | namedkey | literal ;
 wait     = "wait:" digit { digit } ;        (* milliseconds, integer *)
+mouse    = click | rightclick | middleclick | doubleclick | scroll | drag ;
 click    = "click:" int ":" int ;           (* 1-based col ":" row *)
+rightclick  = "rightclick:" int ":" int ;   (* right button click *)
+middleclick = "middleclick:" int ":" int ;  (* middle button click *)
+doubleclick = "doubleclick:" int ":" int ;  (* two rapid left clicks *)
+scroll   = "scroll:" ( "up" | "down" ) ":" int ":" int ; (* wheel event *)
+drag     = "drag:" int ":" int ":" int ":" int ;         (* col1:row1:col2:row2 *)
 namedkey = (* an exact, case-sensitive entry in the Named-Key table *) ;
 literal  = (* anything else: typed verbatim, rune by rune *) ;
 ```
@@ -234,7 +240,7 @@ literal  = (* anything else: typed verbatim, rune by rune *) ;
 ### Resolution precedence (per token, first match wins)
 
 1. Matches `wait:<digits>` → delay that many ms (no extra keystroke-delay after).
-2. Matches `click:<int>:<int>` → SGR mouse click (see table).
+2. Matches a mouse token (`click`, `rightclick`, `middleclick`, `doubleclick`, `scroll`, `drag`) → SGR mouse sequence (see table).
 3. Matches a Terminal.Gui-compatible key token → its sequence.
 4. Key-like unknown tokens are errors instead of literals. This includes
    malformed `wait:`/`click:` tokens, unknown modifier combinations,
@@ -285,8 +291,17 @@ where available, e.g. `Ctrl+Alt+Shift+CursorUp` → `\x1b[1;8A` and
 `Ctrl+Alt+Shift+Delete` → `\x1b[3;8~`. Modified Enter/Tab/Esc fall back to
 CSI-u sequences when there is no legacy escape sequence.
 
-Mouse: `click:col:row` → SGR press+release, 1-based:
-`\x1b[<0;col;rowM` immediately followed by `\x1b[<0;col;rowm`.
+Mouse tokens use SGR encoding, 1-based coordinates:
+
+| Token | SGR Sequence |
+|-------|-------------|
+| `click:col:row` | `\x1b[<0;col;rowM` + `\x1b[<0;col;rowm` |
+| `rightclick:col:row` | `\x1b[<2;col;rowM` + `\x1b[<2;col;rowm` |
+| `middleclick:col:row` | `\x1b[<1;col;rowM` + `\x1b[<1;col;rowm` |
+| `doubleclick:col:row` | Two left press+release pairs back-to-back |
+| `scroll:up:col:row` | `\x1b[<64;col;rowM` (no release) |
+| `scroll:down:col:row` | `\x1b[<65;col;rowM` (no release) |
+| `drag:col1:row1:col2:row2` | `\x1b[<0;col1;row1M` + `\x1b[<32;col2;row2M` + `\x1b[<0;col2;row2m` |
 
 ## Concurrency & Teardown
 
@@ -397,7 +412,7 @@ Encode these so they are **not** rediscovered:
   rows in TUI recordings; default to `1.0`.
 - Passing `--font-family` to `agg` on a host without that font fails;
   omit the flag entirely when `--font` is unset.
-- Mouse uses SGR press+release (`\x1b[<0;col;rowM` / `…m`), 1-based.
+- Mouse uses SGR encoding with 1-based coordinates (see Mouse tokens table above).
 - The prototype reads decoded JS strings so it dodged UTF-8 boundary
   bugs; Go reads raw PTY **bytes** — split runes must be buffered (FR-3).
 - The prototype recorder buffered all events in memory — do not port that;
