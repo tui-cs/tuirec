@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:generate cp ../../agent/RECORDING-AGENT.md agent-guide.md
+//go:generate go run ../../internal/tools/syncfile.go ../../agent/RECORDING-AGENT.md agent-guide.md
 
 //go:embed agent-guide.md
 var agentGuide string
@@ -166,10 +166,10 @@ func newRecordCommand(options cliOptions) *cobra.Command {
 		Long: `Record a terminal app.
 
 Keystroke tokens are comma-separated. Use wait:<ms> for delays, click:col:row
-for SGR mouse clicks, literal text for typed text, and Terminal.Gui Key strings
-for named keys. Key strings use the same format as Terminal.Gui Key.ToString()
-and Key.TryParse(), such as Ctrl+C, Ctrl-C, A-Ctrl, Shift+Tab,
-Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.
+or move:col:row (for hover) for SGR mouse events, literal text for typed text,
+and Terminal.Gui Key strings for named keys. Key strings use the same format as
+Terminal.Gui Key.ToString() and Key.TryParse(), such as Ctrl+C, Ctrl-C, A-Ctrl,
+Shift+Tab, Ctrl+Alt+Shift+CursorUp, Esc, Enter, Delete, and F1.
 
 Use --show-command to type a synthetic shell prompt/command into the GIF before
 the target starts. Use --startup-delay to wait before copying target output,
@@ -197,7 +197,7 @@ pacing to stderr.`,
 	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output GIF path")
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
 	cmd.Flags().StringVar(&flags.name, "name", "", "Short name for the recording; sets --output artifacts/<name>.gif and --cast-output artifacts/<name>.cast unless explicitly set")
-	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, backtick-quoted literal text, or Terminal.Gui Key strings")
+	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, move:col:row, backtick-quoted literal text, or Terminal.Gui Key strings")
 	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
 	cmd.Flags().IntVar(&flags.inputDelayMS, "input-delay", flags.inputDelayMS, "Milliseconds to wait before playing the keystroke script")
 	cmd.Flags().IntVar(&flags.startupDelayMS, "startup-delay", flags.startupDelayMS, "Milliseconds to wait after starting the target before copying output and key input")

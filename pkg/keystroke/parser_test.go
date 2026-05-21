@@ -229,6 +229,16 @@ func TestParseMouseEvents(t *testing.T) {
 			input: "drag:1:1:40:20",
 			want:  Action{Kind: Write, Sequence: "\x1b[<0;1;1M\x1b[<32;40;20M\x1b[<0;40;20m", Label: "drag:1:1:40:20"},
 		},
+		{
+			name:  "mouse move",
+			input: "move:42:3",
+			want:  Action{Kind: Write, Sequence: "\x1b[<32;42;3M", Label: "move:42:3"},
+		},
+		{
+			name:  "hover alias for move",
+			input: "hover:80:1",
+			want:  Action{Kind: Write, Sequence: "\x1b[<32;80;1M", Label: "hover:80:1"},
+		},
 	}
 
 	for _, tt := range tests {

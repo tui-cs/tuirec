@@ -115,6 +115,8 @@ func parseMouse(token string) (string, bool, error) {
 		return parseScroll(token)
 	case strings.HasPrefix(token, "drag:"):
 		return parseDrag(token)
+	case strings.HasPrefix(token, "move:") || strings.HasPrefix(token, "hover:"):
+		return parseMouseMove(token)
 	default:
 		return "", false, nil
 	}
@@ -182,10 +184,22 @@ func parseDrag(token string) (string, bool, error) {
 		}
 	}
 
-	col1, _ := strconv.Atoi(parts[0])
-	row1, _ := strconv.Atoi(parts[1])
-	col2, _ := strconv.Atoi(parts[2])
-	row2, _ := strconv.Atoi(parts[3])
+	col1, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return "", true, fmt.Errorf("invalid drag coordinate: %w", err)
+	}
+	row1, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", true, fmt.Errorf("invalid drag coordinate: %w", err)
+	}
+	col2, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return "", true, fmt.Errorf("invalid drag coordinate: %w", err)
+	}
+	row2, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return "", true, fmt.Errorf("invalid drag coordinate: %w", err)
+	}
 
 	if col1 < 1 || row1 < 1 || col2 < 1 || row2 < 1 {
 		return "", true, fmt.Errorf("mouse coordinates are 1-based: %s", token)
@@ -198,14 +212,36 @@ func parseDrag(token string) (string, bool, error) {
 	return seq, true, nil
 }
 
+// parseMouseMove handles move: or hover: tokens for mouse motion events (used
+// to trigger hover effects in TUIs that support mouse tracking).
+func parseMouseMove(token string) (string, bool, error) {
+	prefix := "move:"
+	if strings.HasPrefix(token, "hover:") {
+		prefix = "hover:"
+	}
+	value := token[len(prefix):]
+	col, row, err := parseColRow(value, token)
+	if err != nil {
+		return "", true, err
+	}
+	// SGR extended mouse motion event (32 = motion flag, M = button press/motion).
+	return fmt.Sprintf("\x1b[<32;%d;%dM", col, row), true, nil
+}
+
 func parseColRow(value, token string) (int, int, error) {
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 || !allDigits(parts[0]) || !allDigits(parts[1]) || parts[0] == "" || parts[1] == "" {
 		return 0, 0, fmt.Errorf("invalid mouse token (expected col:row): %s", token)
 	}
 
-	col, _ := strconv.Atoi(parts[0])
-	row, _ := strconv.Atoi(parts[1])
+	col, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid mouse coordinate: %w", err)
+	}
+	row, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid mouse coordinate: %w", err)
+	}
 
 	if col < 1 || row < 1 {
 		return 0, 0, fmt.Errorf("mouse coordinates are 1-based: %s", token)
@@ -227,48 +263,6 @@ func sgrRelease(button, col, row int) string {
 // sgrPressRelease emits an SGR press followed by release.
 func sgrPressRelease(button, col, row int) string {
 	return sgrPress(button, col, row) + sgrRelease(button, col, row)
-}
-
-func modifierRest(token, modifier string) (string, bool) {
-	for _, separator := range []string{"+", "-"} {
-		prefix := modifier + separator
-		if len(token) > len(prefix) && strings.EqualFold(token[:len(prefix)], prefix) {
-			return token[len(prefix):], true
-		}
-	}
-
-	return "", false
-}
-
-func hasModifierPrefix(token, modifier string) bool {
-	if len(token) <= len(modifier) {
-		return false
-	}
-
-	return strings.EqualFold(token[:len(modifier)], modifier) && (token[len(modifier)] == '+' || token[len(modifier)] == '-')
-}
-
-func isKeyIdentifier(token string) bool {
-	if token == "" {
-		return false
-	}
-
-	for _, r := range token {
-		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
-			return false
-		}
-	}
-
-	return true
-}
-
-func startsWithUpperIdentifier(token string) bool {
-	if token == "" {
-		return false
-	}
-
-	first := token[0]
-	return first >= 'A' && first <= 'Z' && isKeyIdentifier(token)
 }
 
 func splitTokens(script string) ([]string, error) {
