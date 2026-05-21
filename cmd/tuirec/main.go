@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:generate cp ../../agent/RECORDING-AGENT.md agent-guide.md
+//go:generate go run ../../internal/tools/syncfile.go ../../agent/RECORDING-AGENT.md agent-guide.md
 
 //go:embed agent-guide.md
 var agentGuide string
