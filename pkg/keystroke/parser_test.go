@@ -186,6 +186,102 @@ func TestParseUnclosedBacktickError(t *testing.T) {
 	}
 }
 
+func TestParseMouseEvents(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  Action
+	}{
+		{
+			name:  "left click",
+			input: "click:10:5",
+			want:  Action{Kind: Write, Sequence: "\x1b[<0;10;5M\x1b[<0;10;5m", Label: "click:10:5"},
+		},
+		{
+			name:  "right click",
+			input: "rightclick:20:8",
+			want:  Action{Kind: Write, Sequence: "\x1b[<2;20;8M\x1b[<2;20;8m", Label: "rightclick:20:8"},
+		},
+		{
+			name:  "middle click",
+			input: "middleclick:3:12",
+			want:  Action{Kind: Write, Sequence: "\x1b[<1;3;12M\x1b[<1;3;12m", Label: "middleclick:3:12"},
+		},
+		{
+			name:  "double click",
+			input: "doubleclick:15:7",
+			want:  Action{Kind: Write, Sequence: "\x1b[<0;15;7M\x1b[<0;15;7m\x1b[<0;15;7M\x1b[<0;15;7m", Label: "doubleclick:15:7"},
+		},
+		{
+			name:  "scroll up",
+			input: "scroll:up:5:10",
+			want:  Action{Kind: Write, Sequence: "\x1b[<64;5;10M", Label: "scroll:up:5:10"},
+		},
+		{
+			name:  "scroll down",
+			input: "scroll:down:5:10",
+			want:  Action{Kind: Write, Sequence: "\x1b[<65;5;10M", Label: "scroll:down:5:10"},
+		},
+		{
+			name:  "drag",
+			input: "drag:1:1:40:20",
+			want:  Action{Kind: Write, Sequence: "\x1b[<0;1;1M\x1b[<32;40;20M\x1b[<0;40;20m", Label: "drag:1:1:40:20"},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actions, err := Parse(tt.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", tt.input, err)
+			}
+			if len(actions) != 1 {
+				t.Fatalf("Parse(%q) returned %d actions, want 1", tt.input, len(actions))
+			}
+			if !reflect.DeepEqual(actions[0], tt.want) {
+				t.Fatalf("Parse(%q) = %#v, want %#v", tt.input, actions[0], tt.want)
+			}
+		})
+	}
+}
+
+func TestParseMouseErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"click zero col", "click:0:1"},
+		{"click zero row", "click:1:0"},
+		{"rightclick zero", "rightclick:0:5"},
+		{"middleclick zero", "middleclick:5:0"},
+		{"doubleclick zero", "doubleclick:0:0"},
+		{"scroll invalid direction", "scroll:left:5:5"},
+		{"scroll missing coords", "scroll:up:5"},
+		{"scroll non-numeric", "scroll:up:a:b"},
+		{"drag missing coords", "drag:1:2:3"},
+		{"drag zero coord", "drag:0:1:5:5"},
+		{"drag non-numeric", "drag:a:1:5:5"},
+		{"click non-numeric", "click:abc:def"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := Parse(tt.input)
+			if err == nil {
+				t.Fatalf("Parse(%q) err = nil, want error", tt.input)
+			}
+		})
+	}
+}
+
 func TestParseCapitalizedKeysStillWork(t *testing.T) {
 	t.Parallel()
 

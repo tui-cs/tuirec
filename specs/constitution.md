@@ -2,7 +2,7 @@
 
 **Version**: 1.2 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
 
-This constitution governs all contributions to `gui-cs/tuirec`. It is the highest-authority document in the repository â€” PRs that violate it are rejected with a link to the specific rule.
+This constitution governs all contributions to `gui-cs/tuirec`. It is the highest-authority document in the repository — PRs that violate it are rejected with a link to the specific rule.
 
 ---
 
@@ -20,7 +20,7 @@ tuirec is **not** a terminal emulator, not a screen recorder with audio, and not
 
 ## II. Non-Goals
 
-These were considered and explicitly rejected for v1 â€” do not accidentally pursue them:
+These were considered and explicitly rejected for v1 — do not accidentally pursue them:
 
 - AI/LLM-driven navigation (deferred to v2).
 - A hosted web service, API, queue, or cloud storage backend.
@@ -33,27 +33,27 @@ These were considered and explicitly rejected for v1 â€” do not accidentall
 
 ### This Is Fun
 
-While customers may take what we build seriously, we do this for fun, and we insist on using levity and humor â€” often cutting â€” throughout. The beatings will continue until morale improves.
+While customers may take what we build seriously, we do this for fun, and we insist on using levity and humor — often cutting — throughout. The beatings will continue until morale improves.
 
 We do this with a modicum of respect and a desire to not offend.
 
 ### Excellent Engineering
 
-Developers â€” AI agents and humans â€” working on this project strive to raise the bar as Principal Engineers. Principal Engineers are measured by how they live the [Amazon PE Community Tenets](https://www.amazon.jobs/content/en/teams/principal-engineering/tenets):
+Developers — AI agents and humans — working on this project strive to raise the bar as Principal Engineers. Principal Engineers are measured by how they live the [Amazon PE Community Tenets](https://www.amazon.jobs/content/en/teams/principal-engineering/tenets):
 
-1. **Exemplary practitioner** â€” set the standard through your own work.
-2. **Technically fearless** â€” tackle the hardest, most ambiguous problems.
-3. **Lead with empathy** â€” foster inclusion; be mindful of your impact.
-4. **Balanced and pragmatic** â€” neither dogmatic nor reckless.
-5. **Illuminate and clarify** â€” bring clarity to complexity; drive crisp decisions.
-6. **Flexible in approach** â€” adapt style and methods to the problem at hand.
-7. **Respect what came before** â€” appreciate existing systems; learn from the past.
-8. **Learn, educate, and advocate** â€” pursue continuous learning and teach others.
-9. **Have resounding impact** â€” results are the minimum; lasting impact is the bar.
+1. **Exemplary practitioner** — set the standard through your own work.
+2. **Technically fearless** — tackle the hardest, most ambiguous problems.
+3. **Lead with empathy** — foster inclusion; be mindful of your impact.
+4. **Balanced and pragmatic** — neither dogmatic nor reckless.
+5. **Illuminate and clarify** — bring clarity to complexity; drive crisp decisions.
+6. **Flexible in approach** — adapt style and methods to the problem at hand.
+7. **Respect what came before** — appreciate existing systems; learn from the past.
+8. **Learn, educate, and advocate** — pursue continuous learning and teach others.
+9. **Have resounding impact** — results are the minimum; lasting impact is the bar.
 
 ### Simple and Correct
 
-tuirec is a pipeline tool. Each stage (PTY â†’ recorder â†’ keystroke player â†’ GIF renderer) does one thing well. Complexity belongs in the orchestration, not in the components.
+tuirec is a pipeline tool. Each stage (PTY → recorder → keystroke player → GIF renderer) does one thing well. Complexity belongs in the orchestration, not in the components.
 
 - Prefer the standard library over external dependencies.
 - Prefer explicit over clever.
@@ -81,7 +81,7 @@ We chose Go for single-binary distribution, cross-platform support, fast compila
 
 Every PR must comply. Reviewers (human or agent) must reject violations and cite the rule number.
 
-### R1 â€” Package boundaries are load-bearing
+### R1 — Package boundaries are load-bearing
 
 The five core packages (`pty`, `recorder`, `keystroke`, `gif`, `record`) have strict import rules:
 
@@ -92,35 +92,35 @@ The five core packages (`pty`, `recorder`, `keystroke`, `gif`, `record`) have st
 - `pkg/record` is the sole orchestrator; it may import all `pkg/*` packages.
 - `cmd/tuirec` imports `pkg/record` and `cobra`. Nothing else from `pkg/`.
 
-A package may take an external dependency **only** when (a) this rule explicitly grants it and (b) the dependency is listed in `spec.md`'s dependency table with a one-line justification. The bar stays high â€” prefer the standard library; the PTY/ConPTY drivers and the CLI framework are the only anticipated exceptions. R1's intent is to keep leaf packages thin and decoupled, **not** to forbid the irreducible platform primitives that `pkg/pty` is built on. Reimplementing `forkpty`/ConPTY by hand to satisfy a literal "stdlib only" reading is explicitly *not* required and not desired.
+A package may take an external dependency **only** when (a) this rule explicitly grants it and (b) the dependency is listed in `spec.md`'s dependency table with a one-line justification. The bar stays high — prefer the standard library; the PTY/ConPTY drivers and the CLI framework are the only anticipated exceptions. R1's intent is to keep leaf packages thin and decoupled, **not** to forbid the irreducible platform primitives that `pkg/pty` is built on. Reimplementing `forkpty`/ConPTY by hand to satisfy a literal "stdlib only" reading is explicitly *not* required and not desired.
 
 No circular imports. No "utils" package. Shared types live in `pkg/record` (the orchestrator) or are duplicated (prefer duplication over coupling).
 
-### R2 â€” No global mutable state
+### R2 — No global mutable state
 
 No package-level `var` that gets mutated. No `init()` functions that set state. All configuration flows through function parameters or struct fields. This enables parallel testing and prevents action-at-a-distance bugs.
 
-### R3 â€” Errors are values, not panics
+### R3 — Errors are values, not panics
 
 Functions return `error`. Only `main()` may call `os.Exit()`. Never `panic` in library code except for genuinely unrecoverable programmer errors (unreachable code after exhaustive switch). Wrap errors with context: `fmt.Errorf("spawn pty: %w", err)`.
 
-### R4 â€” Platform code is build-tag separated
+### R4 — Platform code is build-tag separated
 
 Platform-specific implementations live in `_unix.go` / `_windows.go` / `_darwin.go` files with the appropriate `//go:build` tag. The shared file defines the interface or common types. Tests that need a real PTY use `t.Skip` on unsupported platforms rather than build tags where possible.
 
-### R5 â€” Tests are fast and parallelizable
+### R5 — Tests are fast and parallelizable
 
-Unit tests (`go test ./...`) must complete in < 5 seconds total and must not depend on external binaries, the network, or fixtures outside the repo. A test **may** spawn a real PTY/ConPTY or an in-repo helper process (e.g. `internal/testapp`) and still be a unit test, provided it stays fast and self-contained. The `//go:build integration` tag is reserved for tests that require `agg` or exercise the full castâ†’GIF pipeline, plus any test driving an external target app. Rationale: PTY round-trip is the core contract of `pkg/pty` and must be exercised by the default `go test ./...` on every OS â€” including Windows â€” not hidden behind a tag.
+Unit tests (`go test ./...`) must complete in < 5 seconds total and must not depend on external binaries, the network, or fixtures outside the repo. A test **may** spawn a real PTY/ConPTY or an in-repo helper process (e.g. `internal/testapp`) and still be a unit test, provided it stays fast and self-contained. The `//go:build integration` tag is reserved for tests that require `agg` or exercise the full cast→GIF pipeline, plus any test driving an external target app. Rationale: PTY round-trip is the core contract of `pkg/pty` and must be exercised by the default `go test ./...` on every OS — including Windows — not hidden behind a tag.
 
-### R6 â€” The key map is complete and tested
+### R6 — The key map is complete and tested
 
 Every named key in the keystroke specification (see `spec.md` FR-2) has a unit test asserting its escape sequence. No key may be added without a corresponding test. The prototype's `Ctrl+Q` bug must not recur.
 
-### R7 â€” CLI flags have sensible defaults
+### R7 — CLI flags have sensible defaults
 
 A user should be able to run `tuirec record --binary ./myapp` and get a reasonable GIF without specifying any other flags. Defaults are documented in `--help` output and in `spec.md`.
 
-### R8 â€” External binary invocation is validated upfront
+### R8 — External binary invocation is validated upfront
 
 Before starting a recording session, validate that:
 - The target binary exists and is executable.
@@ -135,7 +135,7 @@ Fail fast with a clear error message. Don't record for 60 seconds then fail at t
 | Tier | Tag | What it tests | Speed |
 |------|-----|---------------|-------|
 | Unit | (none) | Pure logic (key map, cast writer, script parser) **and** fast self-contained real-PTY / in-repo-process tests | < 5s total |
-| Integration | `integration` | `agg` invocation + full castâ†’GIF pipeline + external target apps | < 60s total |
+| Integration | `integration` | `agg` invocation + full cast→GIF pipeline + external target apps | < 60s total |
 
 ### CI Matrix
 
@@ -145,21 +145,21 @@ ConPTY support has landed (the Phase 1 spike, PR #3, proved
 `github.com/UserExistsError/conpty` works). `pkg/pty` unit tests
 therefore run untagged on Windows too. The `integration` (agg / full
 GIF) job remains Linux + macOS only until an agg-on-Windows install is
-wired into CI â€” a tracked follow-up, not a ConPTY blocker.
+wired into CI — a tracked follow-up, not a ConPTY blocker.
 
 ### Conventions
 
 - Table-driven tests with `t.Run` subtests.
 - `t.Parallel()` on every test that doesn't need serial execution.
-- Test helpers return errors, not `t.Fatal` â€” let the caller decide.
+- Test helpers return errors, not `t.Fatal` — let the caller decide.
 - Golden file tests for cast output (store expected `.cast` in `testdata/`).
 
 ## VI. Coding Standards
 
 Standard Go. See [CLAUDE.md](../CLAUDE.md) for the full guide. Key points:
 
-- `gofmt` / `goimports` â€” non-negotiable.
-- `golangci-lint` default rules â€” CI enforced.
+- `gofmt` / `goimports` — non-negotiable.
+- `golangci-lint` default rules — CI enforced.
 - Short functions (< 50 lines).
 - Exported names have doc comments.
 - No dead code.

@@ -62,7 +62,7 @@ func parseToken(token string) (Action, error) {
 		return Action{Kind: Wait, Label: token, Delay: time.Duration(milliseconds) * time.Millisecond}, nil
 	}
 
-	if sequence, ok, err := parseClick(token); ok || err != nil {
+	if sequence, ok, err := parseMouse(token); ok || err != nil {
 		return Action{Kind: Write, Sequence: sequence, Label: token}, err
 	}
 
@@ -101,32 +101,132 @@ func parseWait(token string) (int, bool, error) {
 	return milliseconds, true, nil
 }
 
-func parseClick(token string) (string, bool, error) {
-	value, ok := strings.CutPrefix(token, "click:")
-	if !ok {
+func parseMouse(token string) (string, bool, error) {
+	switch {
+	case strings.HasPrefix(token, "click:"):
+		return parseMouseClick(token, "click:", 0)
+	case strings.HasPrefix(token, "rightclick:"):
+		return parseMouseClick(token, "rightclick:", 2)
+	case strings.HasPrefix(token, "middleclick:"):
+		return parseMouseClick(token, "middleclick:", 1)
+	case strings.HasPrefix(token, "doubleclick:"):
+		return parseDoubleClick(token)
+	case strings.HasPrefix(token, "scroll:"):
+		return parseScroll(token)
+	case strings.HasPrefix(token, "drag:"):
+		return parseDrag(token)
+	default:
 		return "", false, nil
 	}
+}
 
+func parseMouseClick(token, prefix string, button int) (string, bool, error) {
+	value := token[len(prefix):]
+	col, row, err := parseColRow(value, token)
+	if err != nil {
+		return "", true, err
+	}
+
+	return sgrPressRelease(button, col, row), true, nil
+}
+
+func parseDoubleClick(token string) (string, bool, error) {
+	value := token[len("doubleclick:"):]
+	col, row, err := parseColRow(value, token)
+	if err != nil {
+		return "", true, err
+	}
+
+	// Two rapid left press+release pairs.
+	seq := sgrPressRelease(0, col, row) + sgrPressRelease(0, col, row)
+	return seq, true, nil
+}
+
+func parseScroll(token string) (string, bool, error) {
+	value := token[len("scroll:"):]
+	parts := strings.SplitN(value, ":", 3)
+	if len(parts) != 3 {
+		return "", true, fmt.Errorf("invalid scroll token (expected scroll:up|down:col:row): %s", token)
+	}
+
+	var button int
+	switch parts[0] {
+	case "up":
+		button = 64
+	case "down":
+		button = 65
+	default:
+		return "", true, fmt.Errorf("invalid scroll direction %q (expected up or down): %s", parts[0], token)
+	}
+
+	colRow := parts[1] + ":" + parts[2]
+	col, row, err := parseColRow(colRow, token)
+	if err != nil {
+		return "", true, err
+	}
+
+	// Scroll events have no release.
+	return sgrPress(button, col, row), true, nil
+}
+
+func parseDrag(token string) (string, bool, error) {
+	value := token[len("drag:"):]
 	parts := strings.Split(value, ":")
-	if len(parts) != 2 || !allDigits(parts[0]) || !allDigits(parts[1]) {
-		return "", true, fmt.Errorf("invalid click token: %s", token)
+	if len(parts) != 4 {
+		return "", true, fmt.Errorf("invalid drag token (expected drag:col1:row1:col2:row2): %s", token)
 	}
 
-	col, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return "", true, fmt.Errorf("parse click column: %w", err)
+	for _, p := range parts {
+		if !allDigits(p) || p == "" {
+			return "", true, fmt.Errorf("invalid drag token (non-numeric coordinate): %s", token)
+		}
 	}
 
-	row, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return "", true, fmt.Errorf("parse click row: %w", err)
+	col1, _ := strconv.Atoi(parts[0])
+	row1, _ := strconv.Atoi(parts[1])
+	col2, _ := strconv.Atoi(parts[2])
+	row2, _ := strconv.Atoi(parts[3])
+
+	if col1 < 1 || row1 < 1 || col2 < 1 || row2 < 1 {
+		return "", true, fmt.Errorf("mouse coordinates are 1-based: %s", token)
 	}
+
+	// Press at start, motion at end, release at end.
+	seq := sgrPress(0, col1, row1) +
+		sgrPress(32, col2, row2) +
+		sgrRelease(0, col2, row2)
+	return seq, true, nil
+}
+
+func parseColRow(value, token string) (int, int, error) {
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 || !allDigits(parts[0]) || !allDigits(parts[1]) || parts[0] == "" || parts[1] == "" {
+		return 0, 0, fmt.Errorf("invalid mouse token (expected col:row): %s", token)
+	}
+
+	col, _ := strconv.Atoi(parts[0])
+	row, _ := strconv.Atoi(parts[1])
 
 	if col < 1 || row < 1 {
-		return "", true, fmt.Errorf("click coordinates are 1-based: %s", token)
+		return 0, 0, fmt.Errorf("mouse coordinates are 1-based: %s", token)
 	}
 
-	return fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", col, row, col, row), true, nil
+	return col, row, nil
+}
+
+// sgrPress emits an SGR mouse press sequence.
+func sgrPress(button, col, row int) string {
+	return fmt.Sprintf("\x1b[<%d;%d;%dM", button, col, row)
+}
+
+// sgrRelease emits an SGR mouse release sequence.
+func sgrRelease(button, col, row int) string {
+	return fmt.Sprintf("\x1b[<%d;%d;%dm", button, col, row)
+}
+
+// sgrPressRelease emits an SGR press followed by release.
+func sgrPressRelease(button, col, row int) string {
+	return sgrPress(button, col, row) + sgrRelease(button, col, row)
 }
 
 func modifierRest(token, modifier string) (string, bool) {

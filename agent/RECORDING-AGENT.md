@@ -1,4 +1,4 @@
-# Recording Agent â€” tuirec Keystroke Guide
+# Recording Agent — tuirec Keystroke Guide
 
 This document teaches an AI agent how to compose tuirec keystroke scripts for
 recording any terminal application. Any AI system (Claude, Copilot, Codex, etc.)
@@ -36,9 +36,14 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 | **Wait** | `wait:2000` | Pause N milliseconds before next key |
 | **Named key** | `Enter`, `Esc`, `Tab`, `Space`, `Backspace`, `Delete` | Single special key press |
 | **Arrow/nav** | `CursorUp`, `CursorDown`, `CursorLeft`, `CursorRight`, `Home`, `End`, `PageUp`, `PageDown` | Navigation keys |
-| **Function key** | `F1`â€“`F12` | Function keys |
+| **Function key** | `F1`—`F12` | Function keys |
 | **Modifier combo** | `Ctrl+S`, `Ctrl+Shift+Z`, `Alt+A`, `Shift+Tab`, `Ctrl+Alt+Shift+CursorUp` | Modifier + key |
-| **Mouse click** | `click:10:5` | SGR mouse click at column:row (1-based) |
+| **Mouse click** | `click:10:5` | SGR left click at column:row (1-based) |
+| **Right click** | `rightclick:10:5` | SGR right click at column:row (1-based) |
+| **Middle click** | `middleclick:10:5` | SGR middle click at column:row (1-based) |
+| **Double click** | `doubleclick:10:5` | Two rapid left clicks at column:row (1-based) |
+| **Scroll** | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel up/down at column:row (1-based) |
+| **Drag** | `drag:1:1:40:20` | Left-button drag from col1:row1 to col2:row2 (1-based) |
 | **Literal text** | `` `hello world` `` | Backtick-quoted text, typed character-by-character |
 
 ### Rules
@@ -63,39 +68,39 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   Bare names like `--binary "myapp.exe"` fail with a Go security error. Use
   `--binary ./myapp.exe` or `--binary C:/path/to/myapp.exe`. **Windows agents:**
   discover the path with `where.exe <name>`, then convert backslashes to forward
-  slashes (`C:/Users/me/tools/myapp.exe`) â€” backslash paths get mangled
+  slashes (`C:/Users/me/tools/myapp.exe`) — backslash paths get mangled
   when invoked via bash-style shells.
-- **`--show-command` format** â€” tuirec renders exactly what you provide. Include
+- **`--show-command` format** — tuirec renders exactly what you provide. Include
   the `$ ` prompt prefix yourself if you want one: `--show-command '$ myapp foo'`.
   tuirec does not add its own prompt decoration. **Windows/PowerShell note:**
   use single quotes to prevent `$` interpolation:
-  `--show-command '$ myapp'` â€” double quotes would require backtick-escaping
+  `--show-command '$ myapp'` — double quotes would require backtick-escaping
   `` --show-command "`$ myapp" ``.
-- **`--show-command` with alt-screen apps** â€” works correctly (pre-roll enters
+- **`--show-command` with alt-screen apps** — works correctly (pre-roll enters
   alt-screen automatically), but the synthetic prompt frame will be brief. Omit
   it if the app's own UI is the focus.
-- **`--show-command` timing budget** â€” the pre-roll renders at ~35ms/char plus a
+- **`--show-command` timing budget** — the pre-roll renders at ~35ms/char plus a
   500ms hold. A 33-char show-command adds ~1.7s before the app even starts (on
   top of `--startup-delay`). Factor this into `--max-duration` planning.
-- **`--keystroke-delay` affects literal text** â€” each character in a backtick
+- **`--keystroke-delay` affects literal text** — each character in a backtick
   literal gets the inter-key delay (default 200ms). **Rule of thumb:** budget
-  `n Ã— 200ms` per literal word (e.g. `` `cursor` `` = 6 chars Ã— 200ms = 1.2s).
+  `n × 200ms` per literal word (e.g. `` `cursor` `` = 6 chars × 200ms = 1.2s).
   For typing-heavy scripts, use `--keystroke-delay 50` or shorter. Per-character
-  pacing is a feature for masked/validated fields â€” keep the default 200ms for
+  pacing is a feature for masked/validated fields — keep the default 200ms for
   date/phone/IP inputs so each slot transition is visible.
   **Worked example:** a script with `` `switch` `` (6 chars = 1.2s) +
-  3Ã— `PageDown` (3 Ã— 200ms = 0.6s) + waits (5 Ã— 500ms = 2.5s) + startup (2s) =
-  ~6.3s total. Add `--show-command` (~1.5s) and `--drain 2000` (2s) â†’ budget
+  3× `PageDown` (3 × 200ms = 0.6s) + waits (5 × 500ms = 2.5s) + startup (2s) =
+  ~6.3s total. Add `--show-command` (~1.5s) and `--drain 2000` (2s) → budget
   `--max-duration 15` minimum.
-- **First frame may be blank** â€” `--startup-delay` records the alt-screen
+- **First frame may be blank** — `--startup-delay` records the alt-screen
   transition as the initial frame. The actual UI appears after the delay. This
   is normal; the blank frame is brief in the GIF.
-- **Verifying recording content** â€” after recording, check the `.cast` file for
+- **Verifying recording content** — after recording, check the `.cast` file for
   expected output strings (e.g. `grep "1966-09-10" demo.cast` or `tail` the
   cast to see the final printed output). Post-exit terminal noise (stderr from
-  ConfigurationManager, shell prompt redraws) is normal during `--drain` â€” filter
+  ConfigurationManager, shell prompt redraws) is normal during `--drain` — filter
   accordingly when validating.
-- **Key-name collisions with literal words** â€” bare tokens like `delete`, `home`,
+- **Key-name collisions with literal words** — bare tokens like `delete`, `home`,
   `end`, `space`, `tab` resolve as **key presses**, not literal text. If you mean
   to type those words as text, you must backtick-quote them: `` `delete` ``,
   `` `home` ``, `` `end` ``, `` `space` ``, `` `tab` ``. The parser is
@@ -108,11 +113,11 @@ In bash/zsh, backticks trigger **command substitution** inside double quotes.
 Always use **single quotes** around the `--keystrokes` value:
 
 ```bash
-# WRONG â€” bash expands backticks as command substitution:
+# WRONG — bash expands backticks as command substitution:
 --keystrokes "wait:1200,`ls -la`,Enter"
-# â†’ error: "unrecognized token """
+# → error: "unrecognized token """
 
-# RIGHT â€” single quotes prevent expansion:
+# RIGHT — single quotes prevent expansion:
 --keystrokes 'wait:1200,`ls -la`,Enter,wait:1500,`exit`,Enter'
 ```
 
@@ -126,13 +131,13 @@ keystroke string contains backtick-quoted literals, you must **double the
 backticks** inside PowerShell strings:
 
 ```powershell
-# WRONG â€” PowerShell eats the backticks:
+# WRONG — PowerShell eats the backticks:
 --keystrokes "wait:1000,`switch`,Enter"
 
-# RIGHT â€” doubled backticks survive PowerShell interpolation:
+# RIGHT — doubled backticks survive PowerShell interpolation:
 --keystrokes "wait:1000,``switch``,Enter"
 
-# ALSO RIGHT â€” use a variable (single-quoted string preserves backticks):
+# ALSO RIGHT — use a variable (single-quoted string preserves backticks):
 $ks = 'wait:1000,`switch`,Enter'
 tuirec record --keystrokes $ks ...
 ```
@@ -162,45 +167,45 @@ If running inside a restricted agent sandbox that blocks PTY-spawning commands:
 
 ---
 
-## Composing keystroke scripts â€” best practices
+## Composing keystroke scripts — best practices
 
-1. **Always start with a wait** â€” `wait:1500` or `wait:2000` gives the app time
+1. **Always start with a wait** — `wait:1500` or `wait:2000` gives the app time
    to start and render its first frame.
 
-2. **Use `--show-command` for polish** â€” adds a synthetic `$ my-app file.txt`
+2. **Use `--show-command` for polish** — adds a synthetic `$ my-app file.txt`
    prompt frame before the app launches. Makes the GIF look like a real terminal
    session.
 
 3. **Use `--startup-delay`** when the app needs extra init time (large file,
    network) before you want output captured. **Note:** `--startup-delay` delays
-   *output capture* only â€” keystroke playback starts independently after the
+   *output capture* only — keystroke playback starts independently after the
    script's first `wait:` token. You do NOT need both `--startup-delay 2000` and
    `wait:2000` at the start of your script; use one or the other. Use
    `--startup-delay` to suppress early noise; use `wait:` to pace visible actions.
 
-4. **Wait after UI transitions** â€” opening a dialog, switching tabs, or loading
+4. **Wait after UI transitions** — opening a dialog, switching tabs, or loading
    a file needs `wait:500` to `wait:1000` for the UI to settle before the next
    action.
 
-5. **End with the app's quit key** â€” typically `Esc` or `Ctrl+C`. Ensure the
+5. **End with the app's quit key** — typically `Esc` or `Ctrl+C`. Ensure the
    process exits cleanly so the recording stops without hitting max-duration.
 
-6. **Keep recordings short** â€” aim for 10â€“30 seconds of real time. Viewers lose
+6. **Keep recordings short** — aim for 10—30 seconds of real time. Viewers lose
    interest after that. Use `--max-duration 60` as a safety net.
 
-7. **Show, don't rush** â€” generous waits between meaningful actions let the
+7. **Show, don't rush** — generous waits between meaningful actions let the
    viewer see what happened. `wait:1500` after a search highlights the match
    visually.
 
 8. **Use `--verbosity high`** when debugging a keystroke script that isn't
-   working as expected â€” it logs each key token and timing to stderr.
+   working as expected — it logs each key token and timing to stderr.
 
-9. **âš ï¸ Use `--kitty-keyboard` for Terminal.Gui apps** â€” **Critical for Ctrl+M
+9. **⚠ Use `--kitty-keyboard` for Terminal.Gui apps** — **Critical for Ctrl+M
    and Ctrl+I.** Without this flag, Ctrl+M is indistinguishable from Enter, and
    Ctrl+I from Tab. Terminal.Gui v2 supports progressive enhancement via the
    Kitty keyboard protocol. Always include this flag for any Terminal.Gui app.
 
-10. **Use `--drain 2000` for TUI apps** â€” after the last keystroke, keep
+10. **Use `--drain 2000` for TUI apps** — after the last keystroke, keep
     recording for 2 seconds so the final UI state is visible in the GIF.
     Without drain, the recording may end before the last action renders.
 
@@ -229,7 +234,7 @@ wait:2000,Ctrl+H,wait:500,`hello`,Tab,`world`,Alt+A,wait:1500,Esc,wait:500,Esc
 ### Find then navigate (close dialog first!)
 
 > **Rule:** If the next action after a find is editor navigation (CursorDown,
-> PageDown, etc.), close the find dialog with `Esc` first â€” otherwise nav keys
+> PageDown, etc.), close the find dialog with `Esc` first — otherwise nav keys
 > go to the dialog, not the document.
 
 ```
@@ -250,17 +255,17 @@ wait:2000,Ctrl+F,wait:500,`cursor`,Enter,wait:1500,Esc
 
 ### Subcommand CLI with --args
 
-> **âš ï¸ `--args` is a string-slice flag.** Do NOT pass multiple args as a single
+> **⚠ `--args` is a string-slice flag.** Do NOT pass multiple args as a single
 > space-separated string. Use **comma-separated** values or **repeat the flag**:
 
 ```bash
-# WRONG â€” passes "edit ./file.cs" as one argument:
+# WRONG — passes "edit ./file.cs" as one argument:
 tuirec record --binary ./my-app.exe --args "edit ./file.cs" ...
 
-# RIGHT â€” comma-separated (one --args flag):
+# RIGHT — comma-separated (one --args flag):
 tuirec record --binary ./my-app.exe --args edit,./file.cs ...
 
-# ALSO RIGHT â€” repeated flags:
+# ALSO RIGHT — repeated flags:
 tuirec record --binary ./my-app.exe --args edit --args ./file.cs ...
 ```
 
@@ -274,6 +279,20 @@ tuirec record --binary ./my-app.exe --args date \
 
 ```
 wait:2000,click:15:3,wait:1000,click:40:10,wait:1500,Esc
+```
+
+### Mouse events — dropdown, scroll, drag
+
+```
+wait:2000,click:19:30,wait:800,g,wait:500,Enter,wait:1500,Ctrl+Q
+```
+
+```
+wait:2000,scroll:down:60:15,wait:300,scroll:down:60:15,wait:500,scroll:up:60:15,wait:500,Esc
+```
+
+```
+wait:2000,drag:5:10:40:10,wait:1000,rightclick:20:10,wait:500,Esc
 ```
 
 ### Recording CLI commands in a shell
@@ -293,7 +312,7 @@ tuirec record \
 ```
 
 Notes:
-- Use `bash`, `powershell`, or `cmd` as the binary â€” not the command itself.
+- Use `bash`, `powershell`, or `cmd` as the binary — not the command itself.
 - Type each command as a backtick literal followed by `Enter`.
 - Use `--keystroke-delay 50` so typing looks natural (default 200ms is slow).
 - End with `exit` (or `Ctrl+D`) to cleanly close the shell.
@@ -343,45 +362,45 @@ path.
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
-| `--binary` | **Yes** | â€” | Path to the target executable |
-| `--keystrokes` | **Yes** | â€” | The tuirec keystroke script |
-| `--name` | No | â€” | Short ID for filenames (`artifacts/<name>.gif`) |
-| `--title` | No | â€” | Title in cast metadata |
-| `--show-command` | No | â€” | Synthetic shell prompt pre-roll |
+| `--binary` | **Yes** | — | Path to the target executable |
+| `--keystrokes` | **Yes** | — | The tuirec keystroke script |
+| `--name` | No | — | Short ID for filenames (`artifacts/<name>.gif`) |
+| `--title` | No | — | Title in cast metadata |
+| `--show-command` | No | — | Synthetic shell prompt pre-roll |
 | `--startup-delay` | No | 0 | Ms to wait after process start before output capture |
 | `--input-delay` | No | 0 | Ms pause before scripted keys begin |
 | `--output` | No | `recording.gif` | GIF path (overrides `--name`) |
-| `--cast-output` | No | â€” | Cast path (overrides `--name`) |
+| `--cast-output` | No | — | Cast path (overrides `--name`) |
 | `--cols` | No | 120 | Terminal columns |
 | `--rows` | No | 30 | Terminal rows |
 | `--max-duration` | No | 60 | Safety timeout (seconds) |
 | `--drain` | No | 500 | Wait after last keystroke (ms) |
 | `--verbosity` | No | `normal` | `quiet`, `normal`, or `high` |
 | `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
-| `--args` | No | â€” | Argument to pass to the binary (repeatable: one `--args` per token) |
+| `--args` | No | — | Argument to pass to the binary (repeatable: one `--args` per token) |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
 | `--open` | No | false | Open the GIF in the default viewer after recording |
 | `--copy` | No | false | Copy the GIF file path to the system clipboard |
 
 ---
 
-## For AI agents â€” how to use this
+## For AI agents — how to use this
 
 When asked to "record <app> doing X", follow this process:
 
 1. **Read this document** for keystroke syntax and best practices.
-2. **Discover the binary** â€” on Windows, run `where.exe <name>` to find the full
+2. **Discover the binary** — on Windows, run `where.exe <name>` to find the full
    path. Convert backslashes to forward slashes for `--binary`.
-3. **Understand the target app's UI** â€” what keys does it respond to? What's its
+3. **Understand the target app's UI** — what keys does it respond to? What's its
    quit key? What dialogs does it have? **Examine the app's source code** if
-   available â€” look at View composition, tab order, key bindings, and control
+   available — look at View composition, tab order, key bindings, and control
    types (e.g. DateEditor, ColorPicker) to determine what keystrokes each control
    accepts. For Terminal.Gui apps with built-in help viewers, prefer
-   `<app> help <cmd> --cat` (or equivalent) to dump help to stdout â€” interactive
+   `<app> help <cmd> --cat` (or equivalent) to dump help to stdout — interactive
    help viewers will hang agent tools.
-4. **Plan the interaction** â€” break the demo into steps (launch â†’ navigate â†’
-   perform action â†’ show result â†’ close).
-5. **Compose the keystroke string** â€” use waits generously between transitions.
+4. **Plan the interaction** — break the demo into steps (launch → navigate →
+   perform action → show result → close).
+5. **Compose the keystroke string** — use waits generously between transitions.
    Use `--verbosity high` for agent-driven recordings to confirm keys are sent
    correctly.
 6. **Call `tuirec record --name <name> --open --copy`** with appropriate
@@ -389,20 +408,20 @@ When asked to "record <app> doing X", follow this process:
    the result immediately; `--copy` puts the GIF path on the clipboard. Always
    include both. The binary auto-downloads agg and creates the artifacts/
    directory as needed.
-7. **Verify the recording** â€” **always** error-check the cast first:
+7. **Verify the recording** — **always** error-check the cast first:
    ```bash
    grep -iE "error|unknown|not found|usage:" <name>.cast
    ```
-   A zero exit code and rendered GIF do NOT guarantee a good recording â€” the app
+   A zero exit code and rendered GIF do NOT guarantee a good recording — the app
    can error in-frame and tuirec still finishes. For CLI apps, also grep for
    expected output (`grep "1966-09-10" demo.cast`). For TUI apps, the GIF is
-   the positive verification â€” pair it with the error-grep as the negative check.
+   the positive verification — pair it with the error-grep as the negative check.
 8. **If execution fails due to permissions**, output the full command for the user
-   to run manually â€” do not loop retrying.
+   to run manually — do not loop retrying.
 9. **Report the output paths and the exact command used** back to the user so they
    can tweak and re-run.
 
-You do NOT need to know the exact pixel layout â€” tuirec drives the app through
+You do NOT need to know the exact pixel layout — tuirec drives the app through
 its terminal input, just like a user would type. Focus on the logical key
 sequence to accomplish the demo goal.
 
@@ -437,28 +456,28 @@ menu), `F9` (Menu bar focus), `Esc` (close dialog/cancel).
 
 ### Common text-editing keys
 
-- `Home` â€” move cursor to start of field (use before typing to overwrite)
-- `End` â€” move cursor to end of field
-- `Ctrl+A` â€” select all (in text fields; note: also opens About in UICatalog)
-- `Delete` / `Backspace` â€” delete character
-- `Tab` / `Shift+Tab` â€” move between controls
+- `Home` — move cursor to start of field (use before typing to overwrite)
+- `End` — move cursor to end of field
+- `Ctrl+A` — select all (in text fields; note: also opens About in UICatalog)
+- `Delete` / `Backspace` — delete character
+- `Tab` / `Shift+Tab` — move between controls
 
 ### Terminal.Gui control keystroke recipes
 
-**TextView** â€” `Ctrl+F` find (if bound), `Esc` close find dialog, `Ctrl+M`
+**TextView** — `Ctrl+F` find (if bound), `Esc` close find dialog, `Ctrl+M`
 fold/unfold (if bound). **Important:** keybindings depend on the host app's
-configuration â€” check the app's config file or source for actual bindings.
-Default TextView has no find/fold â€” apps bind these themselves.
+configuration — check the app's config file or source for actual bindings.
+Default TextView has no find/fold — apps bind these themselves.
 
-**DateEditor / DatePicker** â€” formatted fields auto-skip separators. Type digits
+**DateEditor / DatePicker** — formatted fields auto-skip separators. Type digits
 only (not slashes). For Sept 10, 1966 in MM/dd/yyyy format: `Home,09101966`.
 
-**ColorPicker** â€” Tab between H/S/V sliders, use `CursorUp`/`CursorDown` to
+**ColorPicker** — Tab between H/S/V sliders, use `CursorUp`/`CursorDown` to
 adjust values.
 
-**FileDialog** â€” type the path directly into the text field, then `Enter`.
+**FileDialog** — type the path directly into the text field, then `Enter`.
 
-**ListView / TableView** â€” `CursorUp`/`CursorDown` to navigate, `Enter` to
+**ListView / TableView** — `CursorUp`/`CursorDown` to navigate, `Enter` to
 select.
 
 ### Notes on cast output noise

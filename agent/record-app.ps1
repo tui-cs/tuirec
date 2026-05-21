@@ -74,7 +74,7 @@
 .PARAMETER KittyKeyboard
     Enable Kitty keyboard protocol. Encodes keystrokes as CSI u sequences and
     responds to app mode queries. Use for Terminal.Gui and other apps that
-    support progressive enhancement â€” disambiguates Ctrl+M from Enter, etc.
+    support progressive enhancement — disambiguates Ctrl+M from Enter, etc.
 
 .PARAMETER tuirecVersion
     tuirec release version to download if not found. Default: 0.1.5
@@ -189,7 +189,7 @@ function Resolve-tuirecTool {
     return $null
 }
 
-# Resolve tuirec and agg â€” download if missing
+# Resolve tuirec and agg — download if missing
 $tuirecBin = Resolve-tuirecTool 'tuirec'
 $AggBin = Resolve-tuirecTool 'agg'
 
