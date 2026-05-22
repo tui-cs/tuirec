@@ -101,14 +101,10 @@ func (ind *Indicator) Hide() string {
 }
 
 func hide(col, row int) string {
-	var b strings.Builder
-	b.WriteString("\x1b[s")
-	b.WriteString("\x1b[")
-	b.WriteString(strconv.Itoa(row))
-	b.WriteByte(';')
-	b.WriteString(strconv.Itoa(col))
-	b.WriteString("H \x1b[u")
-	return b.String()
+	// No-op: the app redraws the cell on the next action, so writing a space
+	// here would blank content in recordings with sparse redraws.
+	_, _ = col, row
+	return ""
 }
 
 // ShouldShow reports whether the given action label should trigger the pointer.

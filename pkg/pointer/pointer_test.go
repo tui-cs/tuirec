@@ -46,10 +46,8 @@ func TestIndicatorShowMovesPointer(t *testing.T) {
 	ind := NewIndicator("●")
 	ind.Show(10, 5)
 	seq := ind.Show(20, 8)
-	// Should contain hide (clear old position) + show new position.
-	hideOld := "\x1b[s\x1b[5;10H \x1b[u"
-	showNew := "\x1b[s\x1b[8;20H\x1b[7;1;93m●\x1b[0m\x1b[u"
-	want := hideOld + showNew
+	// hide is now a no-op (app redraws the old cell), so only show new position.
+	want := "\x1b[s\x1b[8;20H\x1b[7;1;93m●\x1b[0m\x1b[u"
 	if seq != want {
 		t.Errorf("Show(20,8) after Show(10,5) = %q, want %q", seq, want)
 	}
@@ -70,9 +68,9 @@ func TestIndicatorHide(t *testing.T) {
 	ind := NewIndicator("●")
 	ind.Show(10, 5)
 	seq := ind.Hide()
-	want := "\x1b[s\x1b[5;10H \x1b[u"
-	if seq != want {
-		t.Errorf("Hide() = %q, want %q", seq, want)
+	// hide is now a no-op; app redraws handle clearing the pointer cell.
+	if seq != "" {
+		t.Errorf("Hide() = %q, want empty", seq)
 	}
 }
 
