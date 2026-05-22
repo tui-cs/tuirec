@@ -102,50 +102,72 @@ func parseWait(token string) (int, bool, error) {
 }
 
 func parseMouse(token string) (string, bool, error) {
+	mouseToken, mouseMods, hasMouseMods := parseMouseModifierPrefix(token)
 	switch {
-	case strings.HasPrefix(token, "click:"):
-		return parseMouseClick(token, "click:", 0)
-	case strings.HasPrefix(token, "rightclick:"):
-		return parseMouseClick(token, "rightclick:", 2)
-	case strings.HasPrefix(token, "middleclick:"):
-		return parseMouseClick(token, "middleclick:", 1)
-	case strings.HasPrefix(token, "doubleclick:"):
-		return parseDoubleClick(token)
-	case strings.HasPrefix(token, "scroll:"):
-		return parseScroll(token)
-	case strings.HasPrefix(token, "drag:"):
-		return parseDrag(token)
-	case strings.HasPrefix(token, "move:") || strings.HasPrefix(token, "hover:"):
-		return parseMouseMove(token)
+	case strings.HasPrefix(mouseToken, "click:"):
+		return parseMouseClick(token, mouseToken, "click:", 0, mouseMods)
+	case strings.HasPrefix(mouseToken, "rightclick:"):
+		return parseMouseClick(token, mouseToken, "rightclick:", 2, mouseMods)
+	case strings.HasPrefix(mouseToken, "middleclick:"):
+		return parseMouseClick(token, mouseToken, "middleclick:", 1, mouseMods)
+	case strings.HasPrefix(mouseToken, "doubleclick:"):
+		return parseDoubleClick(token, mouseToken, mouseMods)
+	case strings.HasPrefix(mouseToken, "scroll:"):
+		return parseScroll(token, mouseToken, mouseMods)
+	case strings.HasPrefix(mouseToken, "drag:"):
+		return parseDrag(token, mouseToken, mouseMods)
+	case strings.HasPrefix(mouseToken, "move:") || strings.HasPrefix(mouseToken, "hover:"):
+		return parseMouseMove(token, mouseToken, mouseMods)
 	default:
+		if hasMouseMods && strings.Contains(mouseToken, ":") {
+			return "", true, fmt.Errorf("invalid modified mouse token: %s", token)
+		}
 		return "", false, nil
 	}
 }
 
-func parseMouseClick(token, prefix string, button int) (string, bool, error) {
-	value := token[len(prefix):]
+func parseMouseModifierPrefix(token string) (string, int, bool) {
+	parts := strings.Split(token, "+")
+	if len(parts) == 1 {
+		return token, 0, false
+	}
+
+	mods := 0
+	for _, part := range parts[:len(parts)-1] {
+		modifier, ok := parseModifier(part)
+		if !ok {
+			return token, 0, false
+		}
+		mods |= modifier
+	}
+
+	return parts[len(parts)-1], mouseModifierBits(mods), true
+}
+
+func parseMouseClick(token, mouseToken, prefix string, button, mouseMods int) (string, bool, error) {
+	value := mouseToken[len(prefix):]
 	col, row, err := parseColRow(value, token)
 	if err != nil {
 		return "", true, err
 	}
 
-	return sgrPressRelease(button, col, row), true, nil
+	return sgrPressRelease(button+mouseMods, col, row), true, nil
 }
 
-func parseDoubleClick(token string) (string, bool, error) {
-	value := token[len("doubleclick:"):]
+func parseDoubleClick(token, mouseToken string, mouseMods int) (string, bool, error) {
+	value := mouseToken[len("doubleclick:"):]
 	col, row, err := parseColRow(value, token)
 	if err != nil {
 		return "", true, err
 	}
 
 	// Two rapid left press+release pairs.
-	seq := sgrPressRelease(0, col, row) + sgrPressRelease(0, col, row)
+	seq := sgrPressRelease(mouseMods, col, row) + sgrPressRelease(mouseMods, col, row)
 	return seq, true, nil
 }
 
-func parseScroll(token string) (string, bool, error) {
-	value := token[len("scroll:"):]
+func parseScroll(token, mouseToken string, mouseMods int) (string, bool, error) {
+	value := mouseToken[len("scroll:"):]
 	parts := strings.SplitN(value, ":", 3)
 	if len(parts) != 3 {
 		return "", true, fmt.Errorf("invalid scroll token (expected scroll:up|down:col:row): %s", token)
@@ -168,11 +190,11 @@ func parseScroll(token string) (string, bool, error) {
 	}
 
 	// Scroll events have no release.
-	return sgrPress(button, col, row), true, nil
+	return sgrPress(button+mouseMods, col, row), true, nil
 }
 
-func parseDrag(token string) (string, bool, error) {
-	value := token[len("drag:"):]
+func parseDrag(token, mouseToken string, mouseMods int) (string, bool, error) {
+	value := mouseToken[len("drag:"):]
 	parts := strings.Split(value, ":")
 	if len(parts) != 4 {
 		return "", true, fmt.Errorf("invalid drag token (expected drag:col1:row1:col2:row2): %s", token)
@@ -206,26 +228,26 @@ func parseDrag(token string) (string, bool, error) {
 	}
 
 	// Press at start, motion at end, release at end.
-	seq := sgrPress(0, col1, row1) +
-		sgrPress(32, col2, row2) +
-		sgrRelease(0, col2, row2)
+	seq := sgrPress(mouseMods, col1, row1) +
+		sgrPress(32+mouseMods, col2, row2) +
+		sgrRelease(mouseMods, col2, row2)
 	return seq, true, nil
 }
 
 // parseMouseMove handles move: or hover: tokens for mouse motion events (used
 // to trigger hover effects in TUIs that support mouse tracking).
-func parseMouseMove(token string) (string, bool, error) {
+func parseMouseMove(token, mouseToken string, mouseMods int) (string, bool, error) {
 	prefix := "move:"
-	if strings.HasPrefix(token, "hover:") {
+	if strings.HasPrefix(mouseToken, "hover:") {
 		prefix = "hover:"
 	}
-	value := token[len(prefix):]
+	value := mouseToken[len(prefix):]
 	col, row, err := parseColRow(value, token)
 	if err != nil {
 		return "", true, err
 	}
 	// SGR extended mouse motion event (32 = motion flag, M = button press/motion).
-	return fmt.Sprintf("\x1b[<32;%d;%dM", col, row), true, nil
+	return fmt.Sprintf("\x1b[<%d;%d;%dM", 32+mouseMods, col, row), true, nil
 }
 
 func parseColRow(value, token string) (int, int, error) {
@@ -263,6 +285,21 @@ func sgrRelease(button, col, row int) string {
 // sgrPressRelease emits an SGR press followed by release.
 func sgrPressRelease(button, col, row int) string {
 	return sgrPress(button, col, row) + sgrRelease(button, col, row)
+}
+
+func mouseModifierBits(mods int) int {
+	bits := 0
+	if mods&modShift != 0 {
+		bits += 4
+	}
+	if mods&modAlt != 0 {
+		bits += 8
+	}
+	if mods&modCtrl != 0 {
+		bits += 16
+	}
+
+	return bits
 }
 
 func splitTokens(script string) ([]string, error) {

@@ -239,6 +239,36 @@ func TestParseMouseEvents(t *testing.T) {
 			input: "hover:80:1",
 			want:  Action{Kind: Write, Sequence: "\x1b[<32;80;1M", Label: "hover:80:1"},
 		},
+		{
+			name:  "ctrl click",
+			input: "Ctrl+click:10:5",
+			want:  Action{Kind: Write, Sequence: "\x1b[<16;10;5M\x1b[<16;10;5m", Label: "Ctrl+click:10:5"},
+		},
+		{
+			name:  "alt shift right click",
+			input: "Alt+Shift+rightclick:20:8",
+			want:  Action{Kind: Write, Sequence: "\x1b[<14;20;8M\x1b[<14;20;8m", Label: "Alt+Shift+rightclick:20:8"},
+		},
+		{
+			name:  "ctrl alt double click",
+			input: "Ctrl+Alt+doubleclick:15:7",
+			want:  Action{Kind: Write, Sequence: "\x1b[<24;15;7M\x1b[<24;15;7m\x1b[<24;15;7M\x1b[<24;15;7m", Label: "Ctrl+Alt+doubleclick:15:7"},
+		},
+		{
+			name:  "shift scroll down",
+			input: "Shift+scroll:down:5:10",
+			want:  Action{Kind: Write, Sequence: "\x1b[<69;5;10M", Label: "Shift+scroll:down:5:10"},
+		},
+		{
+			name:  "alt drag",
+			input: "Alt+drag:1:1:40:20",
+			want:  Action{Kind: Write, Sequence: "\x1b[<8;1;1M\x1b[<40;40;20M\x1b[<8;40;20m", Label: "Alt+drag:1:1:40:20"},
+		},
+		{
+			name:  "ctrl hover",
+			input: "Ctrl+hover:80:1",
+			want:  Action{Kind: Write, Sequence: "\x1b[<48;80;1M", Label: "Ctrl+hover:80:1"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -278,6 +308,10 @@ func TestParseMouseErrors(t *testing.T) {
 		{"drag zero coord", "drag:0:1:5:5"},
 		{"drag non-numeric", "drag:a:1:5:5"},
 		{"click non-numeric", "click:abc:def"},
+		{"modified click zero col", "Ctrl+click:0:1"},
+		{"modified scroll invalid direction", "Alt+scroll:left:5:5"},
+		{"modified drag missing coords", "Shift+drag:1:2:3"},
+		{"modified unknown mouse action", "Ctrl+tap:1:1"},
 	}
 
 	for _, tt := range tests {
