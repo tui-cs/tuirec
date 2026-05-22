@@ -227,10 +227,26 @@ func parseDrag(token, mouseToken string, mouseMods int) (string, bool, error) {
 		return "", true, fmt.Errorf("mouse coordinates are 1-based: %s", token)
 	}
 
-	// Press at start, motion at end, release at end.
-	seq := sgrPress(mouseMods, col1, row1) +
-		sgrPress(32+mouseMods, col2, row2) +
-		sgrRelease(mouseMods, col2, row2)
+	// Press at start, interpolated motion events, release at end.
+	seq := sgrPress(mouseMods, col1, row1)
+
+	// Generate intermediate motion events for smooth dragging.
+	dx := col2 - col1
+	dy := row2 - row1
+	steps := abs(dx)
+	if abs(dy) > steps {
+		steps = abs(dy)
+	}
+	if steps == 0 {
+		steps = 1
+	}
+	for i := 1; i <= steps; i++ {
+		cx := col1 + dx*i/steps
+		cy := row1 + dy*i/steps
+		seq += sgrPress(32+mouseMods, cx, cy)
+	}
+
+	seq += sgrRelease(mouseMods, col2, row2)
 	return seq, true, nil
 }
 
@@ -364,4 +380,11 @@ func allDigits(value string) bool {
 	}
 
 	return true
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
