@@ -20,6 +20,7 @@ type Player struct {
 	sleeper        Sleeper
 	keystrokeDelay time.Duration
 	kittyKeyboard  bool
+	beforeAction   func(Action)
 	log            io.Writer
 }
 
@@ -39,6 +40,13 @@ func WithLogWriter(writer io.Writer) PlayerOption {
 func WithKittyKeyboard() PlayerOption {
 	return func(player *Player) {
 		player.kittyKeyboard = true
+	}
+}
+
+// WithBeforeAction registers a callback invoked before each action is played.
+func WithBeforeAction(fn func(Action)) PlayerOption {
+	return func(player *Player) {
+		player.beforeAction = fn
 	}
 }
 
@@ -83,6 +91,9 @@ func (p Player) PlayActions(actions []Action) error {
 }
 
 func (p Player) playAction(action Action) error {
+	if p.beforeAction != nil {
+		p.beforeAction(action)
+	}
 	switch action.Kind {
 	case Wait:
 		p.logf("wait %s (%s)\n", actionName(action), action.Delay)
