@@ -141,7 +141,7 @@ func TestPosition(t *testing.T) {
 		{"doubleclick:15:7", 15, 7, true},
 		{"scroll:up:10:5", 10, 5, true},
 		{"scroll:down:3:7", 3, 7, true},
-		{"drag:1:1:40:20", 40, 20, true},
+		{"drag:1:1:40:20", 1, 1, true},
 		{"move:85:1", 85, 1, true},
 		{"hover:70:2", 70, 2, true},
 		{"Ctrl+click:10:5", 10, 5, true},

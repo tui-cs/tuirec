@@ -134,7 +134,7 @@ func Position(label string) (col, row int, ok bool) {
 	case strings.HasPrefix(token, "scroll:"):
 		return parseScrollPos(token)
 	case strings.HasPrefix(token, "drag:"):
-		return parseDragEnd(token)
+		return parseDragStart(token)
 	case strings.HasPrefix(token, "move:"),
 		strings.HasPrefix(token, "hover:"):
 		return parseColRow(token)
@@ -193,8 +193,9 @@ func parseScrollPos(token string) (int, int, bool) {
 	return col, row, true
 }
 
-func parseDragEnd(token string) (int, int, bool) {
-	// "drag:col1:row1:col2:row2" — show pointer at drag endpoint.
+func parseDragStart(token string) (int, int, bool) {
+	// "drag:col1:row1:col2:row2" — show pointer at drag start position,
+	// because the beforeAction hook fires before the drag begins.
 	idx := strings.Index(token, ":")
 	if idx < 0 {
 		return 0, 0, false
@@ -204,8 +205,8 @@ func parseDragEnd(token string) (int, int, bool) {
 	if len(parts) != 4 {
 		return 0, 0, false
 	}
-	col, err1 := strconv.Atoi(parts[2])
-	row, err2 := strconv.Atoi(parts[3])
+	col, err1 := strconv.Atoi(parts[0])
+	row, err2 := strconv.Atoi(parts[1])
 	if err1 != nil || err2 != nil || col < 1 || row < 1 {
 		return 0, 0, false
 	}
