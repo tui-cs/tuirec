@@ -102,6 +102,55 @@ func TestRunWritesCommandPreRollToCast(t *testing.T) {
 	}
 }
 
+func TestRunInlineModeOmitsAlternateScreen(t *testing.T) {
+	originalStartPTY := startPTY
+	fakeSession := newFakeSession()
+	startPTY = func(string, []string, pty.Size, pty.Options) (pty.Session, error) {
+		return fakeSession, nil
+	}
+	defer func() {
+		startPTY = originalStartPTY
+	}()
+
+	castPath := filepath.Join(t.TempDir(), "recording.cast")
+	clock := recorder.NewScriptedClock()
+	_, err := Run(context.Background(), Config{
+		Binary:         "fake-app",
+		CastOutput:     castPath,
+		Keystrokes:     "Ctrl+Q",
+		KeystrokeDelay: time.Millisecond,
+		DrainDuration:  time.Millisecond,
+		MaxDuration:    time.Second,
+		Clock:          clock,
+		ShowCommand:    "PS> inline-app",
+		CommandDelay:   10 * time.Millisecond,
+		CommandHold:    20 * time.Millisecond,
+		Inline:         true,
+		Renderer:       &fakeRenderer{},
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	cast, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+
+	got := string(cast)
+	// Inline mode must NOT contain the alternate screen escape.
+	altScreen := "\u001b[?1049h"
+	if strings.Contains(got, altScreen) {
+		t.Fatalf("inline mode cast should not contain alternate screen escape:\n%s", got)
+	}
+	// But it should still contain the show-command text.
+	for _, want := range []string{`"P"`, `"S"`, `"\u003e"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("cast missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestRunHighVerbosityLogsPacing(t *testing.T) {
 	originalStartPTY := startPTY
 	fakeSession := newFakeSession()
