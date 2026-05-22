@@ -19,15 +19,18 @@ dotnet tool install -g clet
 ## Run (Windows)
 
 ```powershell
+$ks = 'wait:1000,`This is a test of the Emergency Broadcast System...`,wait:500,click:4:7,wait:3000'
 .\tuirec.exe record `
     --binary clet `
-    "--args=text,--prompt,Name:" `
+    "--args=text,--title,Name:" `
     --name inline-demo `
     --title "Inline Mode Demo — clet text" `
-    "--show-command=$ clet text --prompt Name:" `
+    "--show-command=$ clet text --title Name:" `
     --inline `
-    "--keystrokes=wait:1000,``Jane Doe``,wait:500,Enter,wait:1000" `
+    --kitty-keyboard `
+    "--keystrokes=$ks" `
     --cols 80 --rows 10 `
+    --drain 3000 `
     --open
 ```
 
@@ -36,13 +39,15 @@ dotnet tool install -g clet
 ```sh
 ./tuirec record \
     --binary clet \
-    '--args=text,--prompt,Name:' \
+    '--args=text,--title,Name:' \
     --name inline-demo \
     --title 'Inline Mode Demo — clet text' \
-    '--show-command=$ clet text --prompt Name:' \
+    '--show-command=$ clet text --title Name:' \
     --inline \
-    '--keystrokes=wait:1000,`Jane Doe`,wait:500,Enter,wait:1000' \
+    --kitty-keyboard \
+    '--keystrokes=wait:1000,`This is a test of the Emergency Broadcast System...`,wait:500,click:4:7,wait:3000' \
     --cols 80 --rows 10 \
+    --drain 3000 \
     --open
 ```
 
@@ -50,19 +55,20 @@ dotnet tool install -g clet
 
 | Step | Token | What happens |
 |------|-------|--------------|
-| 1 | `wait:1000` | Let the inline prompt render |
-| 2 | `` `Jane Doe` `` | Type the answer |
+| 1 | `wait:1000` | Let the inline text editor render |
+| 2 | `` `This is a test of the Emergency Broadcast System...` `` | Type the text |
 | 3 | `wait:500` | Pause to show typed text |
-| 4 | `Enter` | Submit the input |
-| 5 | `wait:1000` | Show the result output |
+| 4 | `click:4:7` | Click the OK button to accept |
+| 5 | `wait:3000` | Show the result output on the command line |
 
 ## What it demonstrates
 
 - **Inline mode**: The app renders below the shell prompt, not fullscreen
 - **Prompt → TUI → result flow**: The GIF shows the realistic terminal experience:
-  1. `$ clet text ...` prompt typed at the top
-  2. The inline TUI input appears below
-  3. After Enter, the result appears below the input
+  1. `$ clet text --title Name:` prompt typed at the top
+  2. The inline text editor appears below with an OK button
+  3. User types text and clicks OK
+  4. After acceptance, the result text appears below on the command line
 - **Small terminal frame**: `--rows 10` keeps the GIF compact since only a
   few rows are needed for inline mode
 
@@ -70,7 +76,9 @@ dotnet tool install -g clet
 
 - `--inline` — skip alternate screen buffer; record in normal screen mode
 - `--show-command` — synthetic prompt typed before the app starts
+- `--kitty-keyboard` — enable Kitty keyboard protocol (required by clet)
 - `--cols 80 --rows 10` — smaller frame appropriate for inline apps
+- `--drain 3000` — keep recording after keystrokes to capture exit output
 
 ## Output
 
