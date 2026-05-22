@@ -15,6 +15,7 @@ import (
 
 	"github.com/gui-cs/tuirec/pkg/gif"
 	"github.com/gui-cs/tuirec/pkg/keystroke"
+	"github.com/gui-cs/tuirec/pkg/pointer"
 	"github.com/gui-cs/tuirec/pkg/pty"
 	"github.com/gui-cs/tuirec/pkg/record"
 	"github.com/spf13/cobra"
@@ -90,6 +91,8 @@ type recordFlags struct {
 	maxDurationSec     int
 	drainMS            int
 	kittyKeyboard      bool
+	mousePointer       string
+	pointerStyle       string
 	openGIF            bool
 	copyPath           bool
 	verbosity          string
@@ -219,6 +222,8 @@ pacing to stderr.`,
 	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
 	cmd.Flags().StringVar(&flags.verbosity, "verbosity", flags.verbosity, "Output verbosity: quiet, normal, or high")
 	cmd.Flags().BoolVar(&flags.kittyKeyboard, "kitty-keyboard", false, "Enable Kitty keyboard protocol: encode keystrokes as CSI u and respond to app mode queries")
+	cmd.Flags().StringVar(&flags.mousePointer, "mouse-pointer", "clicks", "Mouse pointer indicator mode: none, clicks, or all")
+	cmd.Flags().StringVar(&flags.pointerStyle, "pointer-style", "●", "Unicode character to display as the mouse pointer indicator")
 	cmd.Flags().BoolVar(&flags.openGIF, "open", false, "Open the GIF in the default viewer after recording")
 	cmd.Flags().BoolVar(&flags.copyPath, "copy", false, "Copy the GIF file path to the system clipboard after recording")
 
@@ -273,6 +278,11 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 		return usageError(err)
 	}
 
+	mouseMode, err := pointer.ParseMode(flags.mousePointer)
+	if err != nil {
+		return usageError(err)
+	}
+
 	binary, err := options.look(flags.config.Binary)
 	if err != nil {
 		return prerequisiteError(fmt.Errorf("find target binary %q: %w", flags.config.Binary, err))
@@ -289,6 +299,8 @@ func runRecord(ctx context.Context, options cliOptions, flags *recordFlags) erro
 	config.MaxDuration = time.Duration(flags.maxDurationSec) * time.Second
 	config.DrainDuration = time.Duration(flags.drainMS) * time.Millisecond
 	config.KittyKeyboard = flags.kittyKeyboard
+	config.MousePointer = mouseMode
+	config.PointerStyle = flags.pointerStyle
 	config.Verbose = flags.verbosity == "high"
 	config.LogWriter = options.stderr
 

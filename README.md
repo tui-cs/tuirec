@@ -6,6 +6,16 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 
 ![tuirec demo — recording UICatalog](artifacts/hero.gif)
 
+### Mouse Pointer Indicator
+
+Show a visible pointer at mouse event positions in recorded GIFs:
+
+```sh
+tuirec record --mouse-pointer all --binary ./myapp --keystrokes "..."
+```
+
+![Mouse pointer demo — UICatalog About dialog](artifacts/uicatalog-demo.gif)
+
 ## Install
 
 ```sh
@@ -135,6 +145,7 @@ Tokens are comma-separated. Each token is one of:
 | Double click | `doubleclick:10:5` | Two rapid left clicks at col:row |
 | Scroll | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel at col:row |
 | Drag | `drag:1:1:40:20` | Drag from col1:row1 to col2:row2 |
+| Mouse move | `move:10:5`, `hover:10:5` | Motion event at col:row (for hover effects) |
 
 Key names use Terminal.Gui's `Key.ToString()` / `Key.TryParse()` format.
 Multi-character literal text **must** be backtick-quoted. Single characters

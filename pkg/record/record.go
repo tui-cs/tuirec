@@ -11,6 +11,7 @@ import (
 
 	"github.com/gui-cs/tuirec/pkg/gif"
 	"github.com/gui-cs/tuirec/pkg/keystroke"
+	"github.com/gui-cs/tuirec/pkg/pointer"
 	"github.com/gui-cs/tuirec/pkg/pty"
 	"github.com/gui-cs/tuirec/pkg/recorder"
 )
@@ -55,6 +56,8 @@ type Config struct {
 	MaxDuration    time.Duration
 	DrainDuration  time.Duration
 	KittyKeyboard  bool
+	MousePointer   pointer.Mode
+	PointerStyle   string
 	Clock          recorder.Clock
 	Timestamp      time.Time
 	GIF            gif.Config
@@ -147,14 +150,25 @@ func Run(parent context.Context, config Config) (Result, error) {
 	if config.KittyKeyboard {
 		ptyReader = newKittyInterceptor(session, session)
 	}
-	go copyPTY(ptyReader, castRecorder, readDone)
+
+	// Wrap the recorder with a synchronized writer when pointer injection is
+	// enabled so that both copyPTY and pointer writes serialize correctly.
+	var castWriter io.Writer = castRecorder
+	var ptrIndicator *pointer.Indicator
+	if config.MousePointer != pointer.None {
+		syncW := pointer.NewSyncWriter(castRecorder)
+		castWriter = syncW
+		ptrIndicator = pointer.NewIndicator(config.PointerStyle)
+	}
+
+	go copyPTY(ptyReader, castWriter, readDone)
 
 	if err := waitWithLog(ctx, config.StartupDelay, config.Clock, config, "startup delay"); err != nil {
 		return Result{}, err
 	}
 
 	playerDone := make(chan error, 1)
-	go playKeystrokes(ctx, session, actions, config, playerDone)
+	go playKeystrokes(ctx, session, actions, config, castWriter, ptrIndicator, playerDone)
 
 	runErr, source := waitForStop(ctx, playerDone, readDone, waitDone, config.DrainDuration)
 	cancel()
@@ -289,7 +303,7 @@ func copyPTY(reader io.Reader, writer io.Writer, done chan<- error) {
 	}
 }
 
-func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.Action, config Config, done chan<- error) {
+func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.Action, config Config, castWriter io.Writer, ptrInd *pointer.Indicator, done chan<- error) {
 	if err := waitWithLog(ctx, config.InputDelay, config.Clock, config, "input delay"); err != nil {
 		done <- err
 
@@ -302,6 +316,16 @@ func playKeystrokes(ctx context.Context, writer io.Writer, actions []keystroke.A
 	}
 	if config.KittyKeyboard {
 		options = append(options, keystroke.WithKittyKeyboard())
+	}
+	if ptrInd != nil && castWriter != nil {
+		options = append(options, keystroke.WithBeforeAction(func(action keystroke.Action) {
+			if pointer.ShouldShow(config.MousePointer, action.Label) {
+				if col, row, ok := pointer.Position(action.Label); ok {
+					seq := ptrInd.Show(col, row)
+					io.WriteString(castWriter, seq) //nolint:errcheck
+				}
+			}
+		}))
 	}
 
 	player := keystroke.NewPlayer(

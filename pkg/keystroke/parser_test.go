@@ -226,8 +226,8 @@ func TestParseMouseEvents(t *testing.T) {
 		},
 		{
 			name:  "drag",
-			input: "drag:1:1:40:20",
-			want:  Action{Kind: Write, Sequence: "\x1b[<0;1;1M\x1b[<32;40;20M\x1b[<0;40;20m", Label: "drag:1:1:40:20"},
+			input: "drag:5:5:8:5",
+			want:  Action{Kind: Write, Sequence: "\x1b[<0;5;5M\x1b[<32;6;5M\x1b[<32;7;5M\x1b[<32;8;5M\x1b[<0;8;5m", Label: "drag:5:5:8:5"},
 		},
 		{
 			name:  "mouse move",
@@ -261,8 +261,8 @@ func TestParseMouseEvents(t *testing.T) {
 		},
 		{
 			name:  "alt drag",
-			input: "Alt+drag:1:1:40:20",
-			want:  Action{Kind: Write, Sequence: "\x1b[<8;1;1M\x1b[<40;40;20M\x1b[<8;40;20m", Label: "Alt+drag:1:1:40:20"},
+			input: "Alt+drag:5:5:8:5",
+			want:  Action{Kind: Write, Sequence: "\x1b[<8;5;5M\x1b[<40;6;5M\x1b[<40;7;5M\x1b[<40;8;5M\x1b[<8;8;5m", Label: "Alt+drag:5:5:8:5"},
 		},
 		{
 			name:  "ctrl hover",
