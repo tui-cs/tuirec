@@ -36,7 +36,7 @@ func TestIndicatorShow(t *testing.T) {
 	ind := NewIndicator("●")
 	seq := ind.Show(10, 5)
 	// Should contain save cursor, move, style, char, reset, restore cursor.
-	want := "\x1b7\x1b[5;10H\x1b[1;93m●\x1b[0m\x1b8"
+	want := "\x1b[s\x1b[5;10H\x1b[7;1;93m●\x1b[0m\x1b[u"
 	if seq != want {
 		t.Errorf("Show(10,5) = %q, want %q", seq, want)
 	}
@@ -47,8 +47,8 @@ func TestIndicatorShowMovesPointer(t *testing.T) {
 	ind.Show(10, 5)
 	seq := ind.Show(20, 8)
 	// Should contain hide (clear old position) + show new position.
-	hideOld := "\x1b7\x1b[5;10H \x1b8"
-	showNew := "\x1b7\x1b[8;20H\x1b[1;93m●\x1b[0m\x1b8"
+	hideOld := "\x1b[s\x1b[5;10H \x1b[u"
+	showNew := "\x1b[s\x1b[8;20H\x1b[7;1;93m●\x1b[0m\x1b[u"
 	want := hideOld + showNew
 	if seq != want {
 		t.Errorf("Show(20,8) after Show(10,5) = %q, want %q", seq, want)
@@ -60,7 +60,7 @@ func TestIndicatorShowSamePosition(t *testing.T) {
 	ind.Show(10, 5)
 	seq := ind.Show(10, 5)
 	// Same position: no hide, just show again.
-	want := "\x1b7\x1b[5;10H\x1b[1;93m●\x1b[0m\x1b8"
+	want := "\x1b[s\x1b[5;10H\x1b[7;1;93m●\x1b[0m\x1b[u"
 	if seq != want {
 		t.Errorf("Show(10,5) again = %q, want %q", seq, want)
 	}
@@ -70,7 +70,7 @@ func TestIndicatorHide(t *testing.T) {
 	ind := NewIndicator("●")
 	ind.Show(10, 5)
 	seq := ind.Hide()
-	want := "\x1b7\x1b[5;10H \x1b8"
+	want := "\x1b[s\x1b[5;10H \x1b[u"
 	if seq != want {
 		t.Errorf("Hide() = %q, want %q", seq, want)
 	}
@@ -87,7 +87,7 @@ func TestIndicatorHideNotVisible(t *testing.T) {
 func TestIndicatorCustomStyle(t *testing.T) {
 	ind := NewIndicator("►")
 	seq := ind.Show(3, 7)
-	want := "\x1b7\x1b[7;3H\x1b[1;93m►\x1b[0m\x1b8"
+	want := "\x1b[s\x1b[7;3H\x1b[7;1;93m►\x1b[0m\x1b[u"
 	if seq != want {
 		t.Errorf("Show with custom style = %q, want %q", seq, want)
 	}

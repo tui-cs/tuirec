@@ -71,17 +71,18 @@ func (ind *Indicator) Show(col, row int) string {
 	if ind.visible && (ind.lastCol != col || ind.lastRow != row) {
 		b.WriteString(hide(ind.lastCol, ind.lastRow))
 	}
-	// Save cursor, move to position, bold bright yellow, pointer char, reset, restore cursor.
-	b.WriteString("\x1b7")
+	// Save cursor, move to position, reverse video + bold bright yellow,
+	// pointer char, reset, restore cursor.
+	b.WriteString("\x1b[s")
 	b.WriteString("\x1b[")
 	b.WriteString(strconv.Itoa(row))
 	b.WriteByte(';')
 	b.WriteString(strconv.Itoa(col))
 	b.WriteByte('H')
-	b.WriteString("\x1b[1;93m")
+	b.WriteString("\x1b[7;1;93m")
 	b.WriteString(ind.style)
 	b.WriteString("\x1b[0m")
-	b.WriteString("\x1b8")
+	b.WriteString("\x1b[u")
 
 	ind.lastCol = col
 	ind.lastRow = row
@@ -101,12 +102,12 @@ func (ind *Indicator) Hide() string {
 
 func hide(col, row int) string {
 	var b strings.Builder
-	b.WriteString("\x1b7")
+	b.WriteString("\x1b[s")
 	b.WriteString("\x1b[")
 	b.WriteString(strconv.Itoa(row))
 	b.WriteByte(';')
 	b.WriteString(strconv.Itoa(col))
-	b.WriteString("H \x1b8")
+	b.WriteString("H \x1b[u")
 	return b.String()
 }
 
