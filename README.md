@@ -6,16 +6,6 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 
 ![tuirec demo — recording UICatalog](artifacts/hero.gif)
 
-### Mouse Pointer Indicator
-
-Show a visible pointer at mouse event positions in recorded GIFs:
-
-```sh
-tuirec record --mouse-pointer all --binary ./myapp --keystrokes "..."
-```
-
-![Mouse pointer demo — UICatalog About dialog](artifacts/uicatalog-demo.gif)
-
 ## Install
 
 ```sh
@@ -128,7 +118,7 @@ starts before copying its output and playing input. `--drain` keeps recording
 after the last keystroke so the final UI state is visible. For troubleshooting,
 `--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
 
-### Keystroke syntax
+### Keyboard and Mouse Syntax
 
 Tokens are comma-separated. Each token is one of:
 
@@ -150,6 +140,21 @@ Tokens are comma-separated. Each token is one of:
 Key names use Terminal.Gui's `Key.ToString()` / `Key.TryParse()` format.
 Multi-character literal text **must** be backtick-quoted. Single characters
 work without quoting. Unknown bare tokens produce a clear error with guidance.
+
+### Mouse Pointer Indicator
+
+Show a visible pointer at mouse event positions in recorded GIFs:
+
+```sh
+tuirec record --mouse-pointer all --binary ./myapp --keystrokes "..."
+```
+
+- `--mouse-pointer all` — show pointer on all mouse events (clicks + moves + drags)
+- `--mouse-pointer clicks` — (default) only clicks, drags, scrolls
+- `--mouse-pointer none` — disable pointer indicator
+- `--pointer-style "►"` — use a different character (default `●`)
+
+![Mouse pointer demo — UICatalog About dialog](artifacts/hero.gif)
 
 ## For AI Agents
 

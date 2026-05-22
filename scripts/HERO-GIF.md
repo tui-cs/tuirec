@@ -1,6 +1,6 @@
-# Demo GIF: Mouse Pointer Indicator (UICatalog)
+# Hero GIF: Mouse Pointer Indicator (UICatalog)
 
-Recreates `artifacts/uicatalog-demo.gif` — demonstrates the `--mouse-pointer` feature
+Recreates `artifacts/hero.gif` — demonstrates the `--mouse-pointer` feature
 using Terminal.Gui's UICatalog sample application.
 
 ## Prerequisites
@@ -18,7 +18,7 @@ Terminal.Gui checkout; adjust as needed).
 ```powershell
 .\tuirec.exe record `
     --binary "C:\Users\Tig\source\repos\Terminal.Gui\Examples\UICatalog\bin\Debug\net10.0\UICatalog.exe" `
-    --name uicatalog-demo `
+    --name hero `
     --title "Mouse Pointer Indicator Demo — UICatalog" `
     --keystrokes "wait:2000,click:40:1,wait:500,click:40:4,wait:1000,drag:60:8:80:8,drag:80:8:80:18,drag:80:18:40:18,drag:40:18:40:8,drag:40:8:60:8,wait:1000,hover:55:17,wait:500,hover:60:17,wait:500,hover:65:17,wait:2000,click:84:19,wait:500,Ctrl+Q" `
     --mouse-pointer all `
@@ -59,5 +59,5 @@ Terminal.Gui checkout; adjust as needed).
 
 ## Output
 
-- `artifacts/uicatalog-demo.gif` — the animated GIF
-- `artifacts/uicatalog-demo.cast` — the raw asciinema cast file
+- `artifacts/hero.gif` — the animated GIF
+- `artifacts/hero.cast` — the raw asciinema cast file
