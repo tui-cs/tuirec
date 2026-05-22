@@ -21,12 +21,12 @@ dotnet tool install -g clet
 ```powershell
 .\tuirec.exe record `
     --binary clet `
-    --args "text","--prompt","What is your name?" `
+    "--args=text,--prompt,Name:" `
     --name inline-demo `
     --title "Inline Mode Demo — clet text" `
-    --show-command "$ clet text --prompt `"What is your name?`"" `
+    "--show-command=$ clet text --prompt Name:" `
     --inline `
-    --keystrokes "wait:1000,`Jane Doe`,wait:500,Enter,wait:1000" `
+    "--keystrokes=wait:1000,``Jane Doe``,wait:500,Enter,wait:1000" `
     --cols 80 --rows 10 `
     --open
 ```
@@ -36,12 +36,12 @@ dotnet tool install -g clet
 ```sh
 ./tuirec record \
     --binary clet \
-    --args 'text,--prompt,What is your name?' \
+    '--args=text,--prompt,Name:' \
     --name inline-demo \
     --title 'Inline Mode Demo — clet text' \
-    --show-command '$ clet text --prompt "What is your name?"' \
+    '--show-command=$ clet text --prompt Name:' \
     --inline \
-    --keystrokes 'wait:1000,`Jane Doe`,wait:500,Enter,wait:1000' \
+    '--keystrokes=wait:1000,`Jane Doe`,wait:500,Enter,wait:1000' \
     --cols 80 --rows 10 \
     --open
 ```
