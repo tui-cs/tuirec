@@ -139,7 +139,9 @@ func TestRunInlineModeOmitsAlternateScreen(t *testing.T) {
 
 	got := string(cast)
 	// Inline mode must NOT contain the alternate screen escape.
-	altScreen := "\u001b[?1049h"
+	// The cast file is JSON-encoded, so ESC (0x1B) appears as literal
+	// text \u001b in the file — match that form.
+	altScreen := `\u001b[?1049h`
 	if strings.Contains(got, altScreen) {
 		t.Fatalf("inline mode cast should not contain alternate screen escape:\n%s", got)
 	}
