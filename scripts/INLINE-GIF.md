@@ -24,7 +24,7 @@ dotnet tool install -g clet
 $ks = 'wait:1000,`clet text`,wait:200,Enter,wait:2000,`This is a test of the Emergency Broadcast System...`,wait:500,click:4:9,wait:3000'
 .\tuirec.exe record `
     --binary cmd `
-    "--args=/k,prompt $$ " `
+    "--args=/d,/k,prompt $$ " `
     --name inline-demo `
     --title "Inline Mode Demo — clet text" `
     "--keystrokes=$ks" `
