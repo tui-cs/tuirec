@@ -22,14 +22,15 @@ dotnet tool install -g clet
 $ks = 'wait:1000,`This is a test of the Emergency Broadcast System...`,wait:500,click:4:7,wait:3000'
 .\tuirec.exe record `
     --binary clet `
-    "--args=text,--title,Name:" `
+    "--args=text" `
     --name inline-demo `
     --title "Inline Mode Demo — clet text" `
-    "--show-command=$ clet text --title Name:" `
+    "--show-command=$ clet text" `
     --inline `
     --kitty-keyboard `
     "--keystrokes=$ks" `
     --cols 80 --rows 10 `
+    --keystroke-delay 20 `
     --drain 3000 `
     --open
 ```
@@ -39,14 +40,15 @@ $ks = 'wait:1000,`This is a test of the Emergency Broadcast System...`,wait:500,
 ```sh
 ./tuirec record \
     --binary clet \
-    '--args=text,--title,Name:' \
+    '--args=text' \
     --name inline-demo \
     --title 'Inline Mode Demo — clet text' \
-    '--show-command=$ clet text --title Name:' \
+    '--show-command=$ clet text' \
     --inline \
     --kitty-keyboard \
     '--keystrokes=wait:1000,`This is a test of the Emergency Broadcast System...`,wait:500,click:4:7,wait:3000' \
     --cols 80 --rows 10 \
+    --keystroke-delay 20 \
     --drain 3000 \
     --open
 ```
