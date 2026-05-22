@@ -224,6 +224,7 @@ pacing to stderr.`,
 	cmd.Flags().BoolVar(&flags.kittyKeyboard, "kitty-keyboard", false, "Enable Kitty keyboard protocol: encode keystrokes as CSI u and respond to app mode queries")
 	cmd.Flags().StringVar(&flags.mousePointer, "mouse-pointer", "clicks", "Mouse pointer indicator mode: none, clicks, or all")
 	cmd.Flags().StringVar(&flags.pointerStyle, "pointer-style", "●", "Unicode character to display as the mouse pointer indicator")
+	cmd.Flags().BoolVar(&flags.config.Inline, "inline", false, "Record an inline-mode app: skip alternate screen so prompt and app output share the normal screen buffer")
 	cmd.Flags().BoolVar(&flags.openGIF, "open", false, "Open the GIF in the default viewer after recording")
 	cmd.Flags().BoolVar(&flags.copyPath, "copy", false, "Copy the GIF file path to the system clipboard after recording")
 

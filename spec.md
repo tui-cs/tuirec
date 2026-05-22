@@ -139,6 +139,7 @@ tuirec record \
   --title <text>            # Title embedded in cast file
   --agg-path <path>         # Path to agg binary (default: sibling agg, ./tools/agg, then PATH)
   --verbosity <level>       # quiet, normal, or high (high logs keys and pacing)
+  --inline                  # Record an inline-mode app (no alternate screen)
 ```
 
 ---

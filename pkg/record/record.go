@@ -58,6 +58,7 @@ type Config struct {
 	KittyKeyboard  bool
 	MousePointer   pointer.Mode
 	PointerStyle   string
+	Inline         bool
 	Clock          recorder.Clock
 	Timestamp      time.Time
 	GIF            gif.Config
@@ -253,11 +254,13 @@ func writeCommandPreRoll(ctx context.Context, writer io.Writer, config Config) e
 		return nil
 	}
 
-	// Enter alternate screen so the pre-roll and app UI share the same
-	// buffer. Without this, agg renders the pre-roll on the main screen
-	// and the app's alternate-screen content separately.
-	if _, err := io.WriteString(writer, "\x1b[?1049h"); err != nil {
-		return fmt.Errorf("write command pre-roll: %w", err)
+	// For fullscreen apps, enter alternate screen so the pre-roll and app
+	// UI share the same buffer. For inline apps, stay in the normal screen
+	// buffer so the prompt remains visible above the app's output.
+	if !config.Inline {
+		if _, err := io.WriteString(writer, "\x1b[?1049h"); err != nil {
+			return fmt.Errorf("write command pre-roll: %w", err)
+		}
 	}
 
 	logf(config, "show command %q\n", config.ShowCommand)
