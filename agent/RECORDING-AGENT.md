@@ -45,6 +45,7 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 | **Scroll** | `scroll:up:10:5`, `scroll:down:10:5` | Scroll wheel up/down at column:row (1-based) |
 | **Drag** | `drag:1:1:40:20` | Left-button drag from col1:row1 to col2:row2 (1-based) |
 | **Mouse move / hover** | `move:85:1`, `hover:70:2` | Move pointer to col:row (triggers hover effects in TUIs with mouse tracking) |
+| **Modifier + mouse** | `Ctrl+click:10:5`, `Alt+drag:1:1:40:20`, `Shift+scroll:down:10:5` | Add `Ctrl+`, `Alt+`, and/or `Shift+` before mouse tokens |
 | **Literal text** | `` `hello world` `` | Backtick-quoted text, typed character-by-character |
 
 ### Rules
@@ -62,6 +63,9 @@ A keystroke script is a **comma-separated** string. Each token is one of:
 - `wait:N` is essential between actions that trigger UI transitions (dialog
   open, file load, menu animation). **Always wait after opening a dialog or
   menu.**
+- Mouse modifiers use the same prefix style as keys: `Ctrl+click:10:5`,
+  `Alt+Shift+rightclick:20:8`, `Ctrl+Alt+doubleclick:15:7`,
+  `Alt+drag:1:1:40:20`. Use lowercase mouse verbs after the modifier prefix.
 
 ### Known gotchas
 
@@ -93,6 +97,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   3× `PageDown` (3 × 200ms = 0.6s) + waits (5 × 500ms = 2.5s) + startup (2s) =
   ~6.3s total. Add `--show-command` (~1.5s) and `--drain 2000` (2s) → budget
   `--max-duration 15` minimum.
+  **Budget formula:** total ≈ show-command (`35ms × chars + hold`) +
+  startup-delay + input-delay + sum(waits) +
+  (`literal_char_count × keystroke-delay`) +
+  (`non_literal_key_count × keystroke-delay`) + drain.
 - **First frame may be blank** — `--startup-delay` records the alt-screen
   transition as the initial frame. The actual UI appears after the delay. This
   is normal; the blank frame is brief in the GIF.
@@ -201,10 +209,13 @@ If running inside a restricted agent sandbox that blocks PTY-spawning commands:
 8. **Use `--verbosity high`** when debugging a keystroke script that isn't
    working as expected — it logs each key token and timing to stderr.
 
-9. **⚠ Use `--kitty-keyboard` for Terminal.Gui apps** — **Critical for Ctrl+M
-   and Ctrl+I.** Without this flag, Ctrl+M is indistinguishable from Enter, and
-   Ctrl+I from Tab. Terminal.Gui v2 supports progressive enhancement via the
-   Kitty keyboard protocol. Always include this flag for any Terminal.Gui app.
+9. **⚠ Treat `--kitty-keyboard` as Terminal.Gui-version dependent** — it is
+   critical for modifier disambiguation (`Ctrl+M` vs Enter, `Ctrl+I` vs Tab),
+   but some Terminal.Gui v2 builds ignore Kitty-encoded navigation keys
+   (`CursorUp`, `CursorDown`, `CursorLeft`, `CursorRight`, `PageUp`,
+   `PageDown`, `Home`, `End`). If the caret or selection does not move during a
+   discovery recording, remove `--kitty-keyboard` and retry. Some versions only
+   support Kitty keyboard for modifier disambiguation, not navigation.
 
 10. **Use `--drain 2000` for TUI apps** — after the last keystroke, keep
     recording for 2 seconds so the final UI state is visible in the GIF.
@@ -296,6 +307,15 @@ wait:2000,scroll:down:60:15,wait:300,scroll:down:60:15,wait:500,scroll:up:60:15,
 wait:2000,drag:5:10:40:10,wait:1000,rightclick:20:10,wait:500,Esc
 ```
 
+Modifier mouse gestures use the same modifier names as keys:
+
+```
+wait:1000,Ctrl+click:10:5,wait:500,Alt+drag:1:1:40:20,wait:500,Ctrl+Alt+doubleclick:15:7
+```
+
+Use these for apps that bind behaviors like multi-caret placement, column
+selection, alternate context actions, or modified scrolling.
+
 ### Hover and mouse movement
 
 Many modern TUIs (Grok Build, Claude Code, Cursor, etc.) use hover states for status indicators, token usage meters, and input highlights. Use `move:` or `hover:` to position the mouse without a button press:
@@ -315,21 +335,49 @@ When recording an unfamiliar TUI, you rarely know the exact column:row of the wi
 
 Recommended workflow:
 
-1. Record a short "UI snapshot" with generous startup wait and early `Ctrl+Q,Ctrl+Q`.
+1. Record a short "UI snapshot" with a generous visible wait and early quit.
 2. Keep `--cast-output` (do not let tuirec delete it).
-3. Parse the cast for recognizable text + cursor positioning sequences (e.g. `\u001b[2;89H1.03%`).
-4. Try a grid of `hover:` or `click:` values with `--verbosity high` and watch which ones produce new output events in the cast.
-5. Once you have the hot spot, lock it into your final recording script.
+3. Parse the cast for recognizable text and column positions.
+4. Re-derive row offsets after scrolling; do not reuse stale click rows.
+5. Try a grid of `hover:` or `click:` values with `--verbosity high` and watch which ones produce new output events in the cast.
+6. Once you have the hot spot, lock it into your final recording script.
 
 Example discovery commands:
 
 ```bash
 tuirec record --binary ./my-tui --name "ui-snapshot" \
-    --keystrokes 'wait:8000,Ctrl+Q,wait:150,Ctrl+Q' \
+    --keystrokes 'wait:3000,Ctrl+Q' \
     --cast-output ui-snapshot.cast --verbosity high
 ```
 
 Then use Python or `grep` on the `.cast` to find interesting screen regions.
+This snippet strips common ANSI CSI sequences and reports 1-based columns for a
+target label:
+
+```python
+import json
+import re
+
+target = "TARGET_TEXT"
+ansi_csi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+with open("ui-snapshot.cast", encoding="utf-8") as f:
+    for line in f:
+        data = json.loads(line)
+        if len(data) == 3 and data[1] == "o":
+            clean = ansi_csi.sub("", data[2])
+            if target in clean:
+                print(f"Found {target!r} at col {clean.index(target) + 1}")
+```
+
+For document editors with a menu bar on row 1 and content starting on row 2:
+
+```
+terminal_row = (document_line - first_visible_line) + 2
+```
+
+After scrolling, re-derive `first_visible_line` from the cast before clicking
+fold gutters or content rows.
 
 ### Recording AI-powered TUIs (Grok Build, Claude Code, etc.)
 
@@ -479,11 +527,16 @@ sequence to accomplish the demo goal.
 
 ### Terminal.Gui app defaults
 
-For any Terminal.Gui application (UICatalog, ted, etc.), always use:
+For Terminal.Gui applications (UICatalog, ted, etc.), start with:
 
 ```powershell
 --kitty-keyboard --startup-delay 2000 --drain 2000
 ```
+
+If navigation keys do not register, retry without `--kitty-keyboard` before
+changing the keystroke script. Keep `--kitty-keyboard` when the demo depends on
+ambiguous control chords such as `Ctrl+M` or `Ctrl+I`; omit it when ordinary
+navigation matters more and the app build ignores Kitty navigation sequences.
 
 **Tip:** Include the app version in `--title` for reproducibility:
 `--title "my-app v1.2.3: Find and Fold"`. Behavior changes between
@@ -531,6 +584,10 @@ adjust values.
 
 **ListView / TableView** — `CursorUp`/`CursorDown` to navigate, `Enter` to
 select.
+
+**DropDownList** — after selecting an item, the dropdown closes. When reopened,
+the current selection is highlighted, so subsequent `CursorDown`/`CursorUp`
+counts are relative to the selected item, not the top of the list.
 
 ### Notes on cast output noise
 

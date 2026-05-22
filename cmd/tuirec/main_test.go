@@ -394,6 +394,7 @@ func TestRecordHelpSnapshot(t *testing.T) {
 		"Record a terminal app",
 		"Terminal.Gui Key strings",
 		"Ctrl+Alt+Shift+CursorUp",
+		"Ctrl+click:col:row",
 		"--show-command string",
 		"--startup-delay int",
 		"--input-delay int",
@@ -572,4 +573,3 @@ func TestRecordCommandAutoDownloadAgg(t *testing.T) {
 		t.Fatalf("execute code = %d, want %d; stderr: %s", code, exitSuccess, stderr.String())
 	}
 }
-
