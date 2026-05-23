@@ -158,15 +158,22 @@ tuirec record --mouse-pointer all --binary ./myapp --keystrokes "..."
 
 ## For AI Agents
 
-tuirec is designed to be driven by AI coding agents. Run:
+tuirec provides three layers of agent guidance — enabling agents to one-shot
+the creation of GIFs of TUI apps doing complicated stuff:
+
+| Layer | Purpose | Access |
+|-------|---------|--------|
+| **OpenCLI** | Discovery — enumerate commands and flags | `tuirec opencli` |
+| **Agent guide** | Semantics — keystroke syntax, timing budgets, platform gotchas, quoting rules | `tuirec agent-guide` |
+| **Recipe files** | Task-specific runbooks an agent can follow verbatim | [`scripts/HERO-GIF.md`](scripts/HERO-GIF.md) |
+
+OpenCLI tells an agent *what flags exist*. The agent guide teaches *how to use
+them correctly*. Recipe files say *"just do this"* for a specific recording.
 
 ```sh
-tuirec agent-guide
+tuirec agent-guide   # full keystroke reference + best practices
+tuirec opencli       # machine-readable command schema (OpenCLI draft spec)
 ```
-
-This prints the full keystroke syntax reference, best practices, and examples.
-AI agents can use this output to compose keystroke scripts and invoke recordings
-without any prior knowledge of the tool.
 
 If tuirec is not installed, download it from
 [GitHub Releases](https://github.com/gui-cs/tuirec/releases) — archives
