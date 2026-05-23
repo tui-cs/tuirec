@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/gui-cs/tuirec/pkg/pty"
 	"github.com/gui-cs/tuirec/pkg/record"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 //go:generate go run ../../internal/tools/syncfile.go ../../agent/RECORDING-AGENT.md agent-guide.md
@@ -157,6 +159,7 @@ func newRootCommand(options cliOptions) *cobra.Command {
 	root.Version = fmt.Sprintf("%s (%s, %s)", version, commit, date)
 	root.AddCommand(newRecordCommand(options))
 	root.AddCommand(newAgentGuideCommand(options))
+	root.AddCommand(newOpenCLICommand(root, options))
 
 	return root
 }
@@ -242,6 +245,97 @@ func newAgentGuideCommand(options cliOptions) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+type openCLIDocument struct {
+	Schema  string         `json:"$schema,omitempty"`
+	OpenCLI string         `json:"opencli"`
+	Command openCLICommand `json:"command"`
+	Info    openCLIInfo    `json:"info"`
+}
+
+type openCLIInfo struct {
+	Title       string `json:"title"`
+	Version     string `json:"version"`
+	Description string `json:"description,omitempty"`
+}
+
+type openCLICommand struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Options     []openCLIOption  `json:"options,omitempty"`
+	Commands    []openCLICommand `json:"commands,omitempty"`
+}
+
+type openCLIOption struct {
+	Name        string   `json:"name"`
+	Aliases     []string `json:"aliases,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Hidden      bool     `json:"hidden,omitempty"`
+}
+
+func newOpenCLICommand(root *cobra.Command, options cliOptions) *cobra.Command {
+	return &cobra.Command{
+		Use:   "opencli",
+		Short: "Print an OpenCLI JSON description for this CLI",
+		Long:  "Prints an OpenCLI (https://opencli.org) JSON description for tuirec.",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			doc := openCLIDocument{
+				Schema:  "https://opencli.org/draft.json",
+				OpenCLI: "0.1",
+				Command: openCLICommandFor(root),
+				Info: openCLIInfo{
+					Title:       "tuirec",
+					Version:     version,
+					Description: "Cross-platform CLI that records terminal apps and produces animated GIFs.",
+				},
+			}
+			encoder := json.NewEncoder(options.stdout)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(doc)
+		},
+	}
+}
+
+func openCLICommandFor(cmd *cobra.Command) openCLICommand {
+	result := openCLICommand{
+		Name:        cmd.Name(),
+		Description: cmd.Short,
+		Options:     openCLIOptionsFor(cmd),
+	}
+	for _, child := range cmd.Commands() {
+		if child.Hidden || child.Name() == "help" || child.Name() == "completion" {
+			continue
+		}
+		result.Commands = append(result.Commands, openCLICommandFor(child))
+	}
+
+	return result
+}
+
+func openCLIOptionsFor(cmd *cobra.Command) []openCLIOption {
+	flags := cmd.LocalFlags()
+	if flags == nil {
+		return nil
+	}
+
+	options := []openCLIOption{}
+	flags.VisitAll(func(flag *pflag.Flag) {
+		if flag.Hidden {
+			return
+		}
+		option := openCLIOption{
+			Name:        "--" + flag.Name,
+			Description: flag.Usage,
+		}
+		if flag.Shorthand != "" && flag.ShorthandDeprecated == "" {
+			option.Aliases = []string{"-" + flag.Shorthand}
+		}
+		options = append(options, option)
+	})
+
+	return options
 }
 
 func defaultRecordFlags() *recordFlags {

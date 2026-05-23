@@ -168,6 +168,12 @@ This prints the full keystroke syntax reference, best practices, and examples.
 AI agents can use this output to compose keystroke scripts and invoke recordings
 without any prior knowledge of the tool.
 
+For a machine-readable command schema based on the OpenCLI draft spec, run:
+
+```sh
+tuirec opencli
+```
+
 If tuirec is not installed, download it from
 [GitHub Releases](https://github.com/gui-cs/tuirec/releases) — archives
 include both `tuirec` and `agg`. See [`llms.txt`](llms.txt) for a

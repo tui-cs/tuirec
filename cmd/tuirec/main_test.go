@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -409,6 +410,55 @@ func TestRecordHelpSnapshot(t *testing.T) {
 	} {
 		if !strings.Contains(help, want) {
 			t.Fatalf("help missing %q:\n%s", want, help)
+		}
+	}
+}
+
+func TestOpenCLICommandPrintsDocument(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	code := execute([]string{"opencli"}, cliOptions{
+		stdout: stdout,
+		stderr: &bytes.Buffer{},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	var doc struct {
+		OpenCLI string `json:"opencli"`
+		Command struct {
+			Name     string `json:"name"`
+			Commands []struct {
+				Name string `json:"name"`
+			} `json:"commands"`
+		} `json:"command"`
+		Info struct {
+			Title string `json:"title"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &doc); err != nil {
+		t.Fatalf("opencli output is not valid json: %v\n%s", err, stdout.String())
+	}
+
+	if doc.OpenCLI != "0.1" {
+		t.Fatalf("opencli version = %q, want %q", doc.OpenCLI, "0.1")
+	}
+	if doc.Command.Name != "tuirec" {
+		t.Fatalf("command name = %q, want %q", doc.Command.Name, "tuirec")
+	}
+	if doc.Info.Title != "tuirec" {
+		t.Fatalf("info title = %q, want %q", doc.Info.Title, "tuirec")
+	}
+
+	subcommands := map[string]bool{}
+	for _, command := range doc.Command.Commands {
+		subcommands[command.Name] = true
+	}
+	for _, expected := range []string{"record", "agent-guide", "opencli"} {
+		if !subcommands[expected] {
+			t.Fatalf("missing command %q in opencli output: %s", expected, stdout.String())
 		}
 	}
 }
