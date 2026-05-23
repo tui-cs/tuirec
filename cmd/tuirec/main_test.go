@@ -431,7 +431,18 @@ func TestOpenCLICommandPrintsDocument(t *testing.T) {
 		Command struct {
 			Name     string `json:"name"`
 			Commands []struct {
-				Name string `json:"name"`
+				Name    string `json:"name"`
+				Options []struct {
+					Name      string `json:"name"`
+					Arguments []struct {
+						Name     string `json:"name"`
+						Required bool   `json:"required"`
+						Arity    struct {
+							Minimum int `json:"minimum"`
+							Maximum int `json:"maximum"`
+						} `json:"arity"`
+					} `json:"arguments"`
+				} `json:"options"`
 			} `json:"commands"`
 		} `json:"command"`
 		Info struct {
@@ -460,6 +471,71 @@ func TestOpenCLICommandPrintsDocument(t *testing.T) {
 		if !subcommands[expected] {
 			t.Fatalf("missing command %q in opencli output: %s", expected, stdout.String())
 		}
+	}
+
+	// Verify argument metadata: non-bool options have arguments, bool options do not.
+	var recordCmd *struct {
+		Name    string `json:"name"`
+		Options []struct {
+			Name      string `json:"name"`
+			Arguments []struct {
+				Name     string `json:"name"`
+				Required bool   `json:"required"`
+				Arity    struct {
+					Minimum int `json:"minimum"`
+					Maximum int `json:"maximum"`
+				} `json:"arity"`
+			} `json:"arguments"`
+		} `json:"options"`
+	}
+	for i := range doc.Command.Commands {
+		if doc.Command.Commands[i].Name == "record" {
+			recordCmd = &doc.Command.Commands[i]
+			break
+		}
+	}
+	if recordCmd == nil {
+		t.Fatal("record command not found in opencli output")
+	}
+
+	optionsByName := map[string]*struct {
+		Name      string `json:"name"`
+		Arguments []struct {
+			Name     string `json:"name"`
+			Required bool   `json:"required"`
+			Arity    struct {
+				Minimum int `json:"minimum"`
+				Maximum int `json:"maximum"`
+			} `json:"arity"`
+		} `json:"arguments"`
+	}{}
+	for i := range recordCmd.Options {
+		optionsByName[recordCmd.Options[i].Name] = &recordCmd.Options[i]
+	}
+
+	// --binary is a string flag: must have arguments with arity 1.
+	binaryOpt, ok := optionsByName["--binary"]
+	if !ok {
+		t.Fatal("--binary option not found in record command")
+	}
+	if len(binaryOpt.Arguments) != 1 {
+		t.Fatalf("--binary arguments count = %d, want 1", len(binaryOpt.Arguments))
+	}
+	if binaryOpt.Arguments[0].Name != "string" {
+		t.Fatalf("--binary argument name = %q, want %q", binaryOpt.Arguments[0].Name, "string")
+	}
+	if binaryOpt.Arguments[0].Arity.Minimum != 1 || binaryOpt.Arguments[0].Arity.Maximum != 1 {
+		t.Fatalf("--binary argument arity = {%d,%d}, want {1,1}",
+			binaryOpt.Arguments[0].Arity.Minimum, binaryOpt.Arguments[0].Arity.Maximum)
+	}
+
+	// --open is a bool flag: must have no arguments.
+	openOpt, ok := optionsByName["--open"]
+	if !ok {
+		t.Fatal("--open option not found in record command")
+	}
+	if len(openOpt.Arguments) != 0 {
+		t.Fatalf("--open arguments count = %d, want 0", len(openOpt.Arguments))
 	}
 }
 

@@ -267,11 +267,23 @@ type openCLICommand struct {
 	Commands    []openCLICommand `json:"commands,omitempty"`
 }
 
+type openCLIOptionArgument struct {
+	Name     string          `json:"name"`
+	Required bool            `json:"required"`
+	Arity    openCLIArity    `json:"arity"`
+}
+
+type openCLIArity struct {
+	Minimum int `json:"minimum"`
+	Maximum int `json:"maximum"`
+}
+
 type openCLIOption struct {
-	Name        string   `json:"name"`
-	Aliases     []string `json:"aliases,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Hidden      bool     `json:"hidden,omitempty"`
+	Name        string                 `json:"name"`
+	Aliases     []string               `json:"aliases,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Hidden      bool                   `json:"hidden,omitempty"`
+	Arguments   []openCLIOptionArgument `json:"arguments,omitempty"`
 }
 
 func newOpenCLICommand(root *cobra.Command, options cliOptions) *cobra.Command {
@@ -331,6 +343,15 @@ func openCLIOptionsFor(cmd *cobra.Command) []openCLIOption {
 		}
 		if flag.Shorthand != "" && flag.ShorthandDeprecated == "" {
 			option.Aliases = []string{"-" + flag.Shorthand}
+		}
+		if flag.Value.Type() != "bool" {
+			option.Arguments = []openCLIOptionArgument{
+				{
+					Name:     flag.Value.Type(),
+					Required: true,
+					Arity:    openCLIArity{Minimum: 1, Maximum: 1},
+				},
+			}
 		}
 		options = append(options, option)
 	})
