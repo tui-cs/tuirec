@@ -11,16 +11,7 @@ var kittyKeyCodepoints = map[string]int{
 	"Enter":       13,
 	"Esc":         27,
 	"Space":       32,
-	"Insert":      57348,
-	"Delete":      57349,
-	"CursorUp":    57352,
-	"CursorDown":  57353,
-	"CursorLeft":  57354,
-	"CursorRight": 57355,
-	"PageUp":      57350,
-	"PageDown":    57351,
-	"Home":        57356,
-	"End":         57357,
+
 	"F1":          57364,
 	"F2":          57365,
 	"F3":          57366,
@@ -65,12 +56,18 @@ func (key terminalKey) kittyNamedSequence() (string, error) {
 		return (terminalKey{rune: rune(key.name[0]), mods: key.mods}).kittyRuneSequence(), nil
 	}
 
-	codepoint, ok := kittyKeyCodepoints[key.name]
-	if !ok {
-		return "", fmt.Errorf("unsupported key for kitty encoding: %s", key.display())
+	// Keys with defined Kitty codepoints use CSI u encoding.
+	if codepoint, ok := kittyKeyCodepoints[key.name]; ok {
+		return kittyCsiU(codepoint, key.mods), nil
 	}
 
-	return kittyCsiU(codepoint, key.mods), nil
+	// Navigation keys use legacy CSI sequences per the Kitty spec — they do
+	// not have CSI u codepoints.
+	if sequence, ok := key.xtermModifiedSequence(); ok {
+		return sequence, nil
+	}
+
+	return "", fmt.Errorf("unsupported key for kitty encoding: %s", key.display())
 }
 
 func (key terminalKey) kittyRuneSequence() string {
