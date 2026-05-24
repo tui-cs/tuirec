@@ -296,7 +296,7 @@ wait:2000,click:15:3,wait:1000,click:40:10,wait:1500,Esc
 ### Mouse events — dropdown, scroll, drag
 
 ```
-wait:2000,click:19:30,wait:800,g,wait:500,Enter,wait:1500,Ctrl+Q
+wait:2000,click:19:30,wait:800,g,wait:500,Enter,wait:1500,Esc
 ```
 
 ```
@@ -346,7 +346,7 @@ Example discovery commands:
 
 ```bash
 tuirec record --binary ./my-tui --name "ui-snapshot" \
-    --keystrokes 'wait:3000,Ctrl+Q' \
+    --keystrokes 'wait:3000,Esc' \
     --cast-output ui-snapshot.cast --verbosity high
 ```
 
@@ -556,8 +556,8 @@ The binary is typically at:
 <repo>\Examples\<AppName>\bin\Debug\net10.0\<AppName>.exe
 ```
 
-Common Terminal.Gui keys: `Ctrl+A` (About), `Ctrl+Q` (Quit), `Alt+F` (File
-menu), `F9` (Menu bar focus), `Esc` (close dialog/cancel).
+Common Terminal.Gui keys: `Ctrl+A` (About), `Esc` (Quit / close dialog/cancel),
+`Alt+F` (File menu), `F9` (Menu bar focus).
 
 ### Common text-editing keys
 
