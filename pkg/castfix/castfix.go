@@ -134,25 +134,37 @@ func newCursorState(cols int) *cursorState {
 }
 
 // process scans a VT output string, tracking cursor position and injecting
-// CUP sequences when the cursor wraps past the terminal width.
+// cursor positioning sequences to compensate for renderers that miscount
+// wide character widths. Injects:
+// - CUP at row boundaries (auto-wrap compensation)
+// - CHA after wide characters when followed by non-wide content (intra-row
+//   drift compensation)
 func (s *cursorState) process(data string) string {
 	var out strings.Builder
-	out.Grow(len(data) + len(data)/10) // slight overalloc for injected sequences
+	out.Grow(len(data) + len(data)/5) // overalloc for injected sequences
 
 	i := 0
+	lastWasWide := false
+
 	for i < len(data) {
 		b := data[i]
 
 		// ESC sequence.
 		if b == 0x1B && i+1 < len(data) {
+			colBefore := s.col
 			seqEnd := s.handleEscape(data, i)
 			out.WriteString(data[i:seqEnd])
+			// If the escape moved the cursor, the drift is irrelevant.
+			if s.col != colBefore {
+				lastWasWide = false
+			}
 			i = seqEnd
 			continue
 		}
 
 		// Carriage return.
 		if b == '\r' {
+			lastWasWide = false
 			s.col = 0
 			out.WriteByte(b)
 			i++
@@ -161,6 +173,7 @@ func (s *cursorState) process(data string) string {
 
 		// Line feed / vertical tab / form feed.
 		if b == '\n' || b == 0x0B || b == 0x0C {
+			lastWasWide = false
 			s.col = 0
 			s.row++
 			out.WriteByte(b)
@@ -170,6 +183,7 @@ func (s *cursorState) process(data string) string {
 
 		// Backspace.
 		if b == 0x08 {
+			lastWasWide = false
 			if s.col > 0 {
 				s.col--
 			}
@@ -180,6 +194,10 @@ func (s *cursorState) process(data string) string {
 
 		// Tab: advance to next multiple of 8.
 		if b == '\t' {
+			if lastWasWide {
+				out.WriteString(fmt.Sprintf("\x1b[%dG", s.col+1))
+				lastWasWide = false
+			}
 			nextTab := (s.col/8 + 1) * 8
 			if nextTab > s.cols {
 				nextTab = s.cols
@@ -206,17 +224,28 @@ func (s *cursorState) process(data string) string {
 			// Auto-wrap: move to next row, column 0.
 			s.row++
 			s.col = 0
+			lastWasWide = false
 			// Inject CUP sequence to explicitly position cursor.
 			cup := fmt.Sprintf("\x1b[%d;1H", s.row)
 			out.WriteString(cup)
+		}
+
+		// Inject CUP when transitioning from wide to non-wide character.
+		// This corrects intra-row drift from renderers miscounting wide chars.
+		// Uses full CUP (row;col) rather than CHA (col only) for maximum
+		// renderer compatibility.
+		if lastWasWide && w <= 1 {
+			out.WriteString(fmt.Sprintf("\x1b[%d;%dH", s.row, s.col+1))
+			lastWasWide = false
 		}
 
 		out.WriteString(data[i : i+size])
 		s.col += w
 		i += size
 
-		// If we've reached exactly the terminal width, the next printable
-		// character will trigger a wrap (handled above).
+		if w >= 2 {
+			lastWasWide = true
+		}
 	}
 
 	return out.String()

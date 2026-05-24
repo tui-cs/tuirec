@@ -186,6 +186,61 @@ func TestFix_EmojiGridRow(t *testing.T) {
 	}
 }
 
+func TestFix_IntraRowCHA(t *testing.T) {
+	t.Parallel()
+
+	// Emoji followed by ASCII in the same row: CHA must be injected after
+	// the emoji to correct intra-row drift for renderers that miscount width.
+	// 3 emoji (6 cols) + "ABC" (3 cols) = 9 cols total in a 20-col terminal.
+	cast := `{"version":2,"width":20,"height":5,"timestamp":1710000000}` + "\n" +
+		`[0,"o",` + mustMarshalString("🌀🌁🌂ABC") + `]` + "\n"
+
+	var output bytes.Buffer
+	if err := Fix(strings.NewReader(cast), &output, 20); err != nil {
+		t.Fatalf("Fix: %v", err)
+	}
+
+	events := decodeOutputEvents(t, output.String())
+	// After the 3 emoji (col=6), transitioning to 'A' should inject CUP[1;7H].
+	found := false
+	for _, ev := range events {
+		if strings.Contains(ev, "\x1b[1;7H") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected CUP \\x1b[1;7H after emoji, got events: %q", events)
+	}
+}
+
+func TestFix_IntraRowCHA_SGRBetween(t *testing.T) {
+	t.Parallel()
+
+	// Emoji, then SGR color change, then ASCII. The CHA should still inject
+	// because SGR doesn't move the cursor.
+	cast := `{"version":2,"width":20,"height":5,"timestamp":1710000000}` + "\n" +
+		`[0,"o",` + mustMarshalString("🌀🌁\x1b[31mABC") + `]` + "\n"
+
+	var output bytes.Buffer
+	if err := Fix(strings.NewReader(cast), &output, 20); err != nil {
+		t.Fatalf("Fix: %v", err)
+	}
+
+	events := decodeOutputEvents(t, output.String())
+	// After 2 emoji (col=4), SGR doesn't change col, then 'A' triggers CUP[1;5H].
+	found := false
+	for _, ev := range events {
+		if strings.Contains(ev, "\x1b[1;5H") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected CUP \\x1b[1;5H after emoji+SGR before ASCII, got events: %q", events)
+	}
+}
+
 // decodeOutputEvents parses the cast output and returns decoded string data
 // from all "o" events.
 func decodeOutputEvents(t *testing.T, cast string) []string {
