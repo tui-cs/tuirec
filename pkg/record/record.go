@@ -2,6 +2,7 @@
 package record
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gui-cs/tuirec/pkg/castfix"
 	"github.com/gui-cs/tuirec/pkg/gif"
 	"github.com/gui-cs/tuirec/pkg/keystroke"
 	"github.com/gui-cs/tuirec/pkg/pointer"
@@ -198,6 +200,10 @@ func Run(parent context.Context, config Config) (Result, error) {
 	result := Result{CastPath: config.CastOutput}
 	if runErr != nil {
 		return result, runErr
+	}
+
+	if err := fixCast(config.CastOutput, config.Size.Cols); err != nil {
+		return result, err
 	}
 
 	if config.Output == "" {
@@ -463,6 +469,26 @@ func (w contextWriter) Write(p []byte) (int, error) {
 	default:
 		return w.writer.Write(p)
 	}
+}
+
+// fixCast post-processes a cast file in place, injecting CUP sequences at row
+// boundaries to fix wide-character wrap drift in renderers like agg.
+func fixCast(path string, cols int) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read cast for fix: %w", err)
+	}
+
+	var fixed bytes.Buffer
+	if err := castfix.Fix(bytes.NewReader(data), &fixed, cols); err != nil {
+		return fmt.Errorf("fix cast: %w", err)
+	}
+
+	if err := os.WriteFile(path, fixed.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("write fixed cast: %w", err)
+	}
+
+	return nil
 }
 
 func (s contextSleeper) Sleep(duration time.Duration) {
