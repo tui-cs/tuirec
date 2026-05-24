@@ -62,7 +62,7 @@ jobs:
       - name: Install agg
         run: |
           curl -fsSL \
-            "https://github.com/asciinema/agg/releases/download/v1.5.0/agg-x86_64-unknown-linux-musl" \
+            "https://github.com/asciinema/agg/releases/download/v1.8.1/agg-x86_64-unknown-linux-musl" \
             -o /usr/local/bin/agg
           chmod +x /usr/local/bin/agg
         if: runner.os == 'Linux'
@@ -70,7 +70,7 @@ jobs:
       - name: Install agg (macOS)
         run: |
           curl -fsSL \
-            "https://github.com/asciinema/agg/releases/download/v1.5.0/agg-aarch64-apple-darwin" \
+            "https://github.com/asciinema/agg/releases/download/v1.8.1/agg-aarch64-apple-darwin" \
             -o /usr/local/bin/agg
           chmod +x /usr/local/bin/agg
         if: runner.os == 'macOS'
@@ -79,7 +79,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\agg" | Out-Null
           Invoke-WebRequest `
-            "https://github.com/asciinema/agg/releases/download/v1.5.0/agg-x86_64-pc-windows-msvc.exe" `
+            "https://github.com/asciinema/agg/releases/download/v1.8.1/agg-x86_64-pc-windows-msvc.exe" `
             -OutFile "$env:RUNNER_TEMP\agg\agg.exe"
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\agg"
         if: runner.os == 'Windows'
