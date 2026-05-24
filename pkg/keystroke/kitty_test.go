@@ -23,14 +23,14 @@ func TestKittySequence(t *testing.T) {
 		{"F1 no mods", terminalKey{name: "F1"}, "\x1b[57364u"},
 		{"F12 no mods", terminalKey{name: "F12"}, "\x1b[57375u"},
 		{"ctrl+F5", terminalKey{name: "F5", mods: modCtrl}, "\x1b[57368;5u"},
-		{"cursor up", terminalKey{name: "CursorUp"}, "\x1b[57352u"},
-		{"shift+cursor down", terminalKey{name: "CursorDown", mods: modShift}, "\x1b[57353;2u"},
-		{"insert", terminalKey{name: "Insert"}, "\x1b[57348u"},
-		{"delete", terminalKey{name: "Delete"}, "\x1b[57349u"},
-		{"home", terminalKey{name: "Home"}, "\x1b[57356u"},
-		{"end", terminalKey{name: "End"}, "\x1b[57357u"},
-		{"page up", terminalKey{name: "PageUp"}, "\x1b[57350u"},
-		{"page down", terminalKey{name: "PageDown"}, "\x1b[57351u"},
+		{"cursor up", terminalKey{name: "CursorUp"}, "\x1b[A"},
+		{"shift+cursor down", terminalKey{name: "CursorDown", mods: modShift}, "\x1b[1;2B"},
+		{"insert", terminalKey{name: "Insert"}, "\x1b[2~"},
+		{"delete", terminalKey{name: "Delete"}, "\x1b[3~"},
+		{"home", terminalKey{name: "Home"}, "\x1b[H"},
+		{"end", terminalKey{name: "End"}, "\x1b[F"},
+		{"page up", terminalKey{name: "PageUp"}, "\x1b[5~"},
+		{"page down", terminalKey{name: "PageDown"}, "\x1b[6~"},
 		{"lowercase a", terminalKey{rune: 'A'}, "\x1b[97u"},
 		{"uppercase A (shift)", terminalKey{rune: 'A', mods: modShift}, "\x1b[97;2u"},
 		{"ctrl+a", terminalKey{rune: 'A', mods: modCtrl}, "\x1b[97;5u"},
@@ -90,6 +90,46 @@ func TestResolveKittyKey(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("resolveKittyKey(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestKittyNavKeysUseLegacyCSI verifies that navigation keys use their legacy
+// CSI encodings in kitty mode, NOT fabricated CSI u codepoints.
+// Per https://sw.kovidgoyal.net/kitty/keyboard-protocol/#functional-key-definitions
+func TestKittyNavKeysUseLegacyCSI(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  terminalKey
+		want string
+	}{
+		{"CursorUp no mods", terminalKey{name: "CursorUp"}, "\x1b[A"},
+		{"CursorDown no mods", terminalKey{name: "CursorDown"}, "\x1b[B"},
+		{"CursorLeft no mods", terminalKey{name: "CursorLeft"}, "\x1b[D"},
+		{"CursorRight no mods", terminalKey{name: "CursorRight"}, "\x1b[C"},
+		{"Home no mods", terminalKey{name: "Home"}, "\x1b[H"},
+		{"End no mods", terminalKey{name: "End"}, "\x1b[F"},
+		{"Insert no mods", terminalKey{name: "Insert"}, "\x1b[2~"},
+		{"Delete no mods", terminalKey{name: "Delete"}, "\x1b[3~"},
+		{"PageUp no mods", terminalKey{name: "PageUp"}, "\x1b[5~"},
+		{"PageDown no mods", terminalKey{name: "PageDown"}, "\x1b[6~"},
+		{"Shift+CursorDown", terminalKey{name: "CursorDown", mods: modShift}, "\x1b[1;2B"},
+		{"Ctrl+Home", terminalKey{name: "Home", mods: modCtrl}, "\x1b[1;5H"},
+		{"Alt+Delete", terminalKey{name: "Delete", mods: modAlt}, "\x1b[3;3~"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tt.key.kittySequence()
+			if err != nil {
+				t.Fatalf("kittySequence() error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("kittySequence() = %q, want %q", got, tt.want)
 			}
 		})
 	}
