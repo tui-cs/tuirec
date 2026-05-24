@@ -1,24 +1,31 @@
 package renderer
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"image/color/palette"
 	"image/draw"
 	stdgif "image/gif"
 	"io"
+	"sync"
 
 	"github.com/charmbracelet/x/vt"
+	"github.com/gui-cs/tuirec/pkg/renderer/fonts"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
 
 // RenderConfig controls the GIF rendering.
 type RenderConfig struct {
 	// CellWidth and CellHeight define the pixel size per terminal cell.
-	// Defaults: 7×13 (matching basicfont.Face7x13).
+	// If zero, derived from the font metrics at FontSize.
 	CellWidth  int
 	CellHeight int
+
+	// FontSize is the TrueType font size in points. Default: 14.
+	FontSize float64
 
 	// Foreground and Background colors.
 	Foreground color.Color
@@ -32,12 +39,22 @@ type RenderConfig struct {
 	FrameDelay int
 }
 
-func (c RenderConfig) normalize() RenderConfig {
-	if c.CellWidth == 0 {
-		c.CellWidth = 7
-	}
-	if c.CellHeight == 0 {
-		c.CellHeight = 13
+var (
+	parsedFont     *opentype.Font
+	parsedFontOnce sync.Once
+	parsedFontErr  error
+)
+
+func loadFont() (*opentype.Font, error) {
+	parsedFontOnce.Do(func() {
+		parsedFont, parsedFontErr = opentype.Parse(fonts.CaskaydiaCoveRegular)
+	})
+	return parsedFont, parsedFontErr
+}
+
+func (c RenderConfig) normalize() (RenderConfig, font.Face, error) {
+	if c.FontSize == 0 {
+		c.FontSize = 14
 	}
 	if c.Foreground == nil {
 		c.Foreground = color.White
@@ -48,12 +65,51 @@ func (c RenderConfig) normalize() RenderConfig {
 	if c.FrameDelay == 0 {
 		c.FrameDelay = 50
 	}
-	return c
+
+	ft, err := loadFont()
+	if err != nil {
+		return c, nil, fmt.Errorf("loading embedded font: %w", err)
+	}
+
+	face, err := opentype.NewFace(ft, &opentype.FaceOptions{
+		Size:    c.FontSize,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		return c, nil, fmt.Errorf("creating font face: %w", err)
+	}
+
+	// Derive cell dimensions from font metrics if not explicitly set
+	if c.CellWidth == 0 || c.CellHeight == 0 {
+		metrics := face.Metrics()
+		if c.CellHeight == 0 {
+			h := (metrics.Ascent + metrics.Descent).Ceil()
+			if h < metrics.Height.Ceil() {
+				h = metrics.Height.Ceil()
+			}
+			c.CellHeight = h
+		}
+		if c.CellWidth == 0 {
+			// Use advance of 'M' for monospace width
+			adv, ok := face.GlyphAdvance('M')
+			if ok {
+				c.CellWidth = adv.Ceil()
+			} else {
+				c.CellWidth = c.CellHeight / 2
+			}
+		}
+	}
+
+	return c, face, nil
 }
 
 // RenderGIF reads an asciinema cast from r and writes an animated GIF to w.
 func RenderGIF(r io.Reader, w io.Writer, cfg RenderConfig) error {
-	cfg = cfg.normalize()
+	cfg, face, err := cfg.normalize()
+	if err != nil {
+		return err
+	}
 
 	hdr, events, err := ParseCast(r)
 	if err != nil {
@@ -68,7 +124,7 @@ func RenderGIF(r io.Reader, w io.Writer, cfg RenderConfig) error {
 	gif := &stdgif.GIF{}
 
 	// Render initial blank frame
-	gif.Image = append(gif.Image, renderFrame(emu, hdr.Width, hdr.Height, imgWidth, imgHeight, cfg))
+	gif.Image = append(gif.Image, renderFrame(emu, hdr.Width, hdr.Height, imgWidth, imgHeight, cfg, face))
 	gif.Delay = append(gif.Delay, cfg.FrameDelay)
 
 	frameCount := 1
@@ -80,10 +136,9 @@ func RenderGIF(r io.Reader, w io.Writer, cfg RenderConfig) error {
 			return err
 		}
 
-		frame := renderFrame(emu, hdr.Width, hdr.Height, imgWidth, imgHeight, cfg)
+		frame := renderFrame(emu, hdr.Width, hdr.Height, imgWidth, imgHeight, cfg, face)
 		gif.Image = append(gif.Image, frame)
 
-		// Calculate delay from event timing
 		delay := cfg.FrameDelay
 		gif.Delay = append(gif.Delay, delay)
 
@@ -96,15 +151,14 @@ func RenderGIF(r io.Reader, w io.Writer, cfg RenderConfig) error {
 	return stdgif.EncodeAll(w, gif)
 }
 
-func renderFrame(emu *vt.Emulator, cols, rows, imgW, imgH int, cfg RenderConfig) *image.Paletted {
-	// Build a palette with basic terminal colors
-	palette := buildPalette(cfg)
-
-	img := image.NewPaletted(image.Rect(0, 0, imgW, imgH), palette)
+func renderFrame(emu *vt.Emulator, cols, rows, imgW, imgH int, cfg RenderConfig, face font.Face) *image.Paletted {
+	// Render to RGBA for full 24-bit color support
+	rgba := image.NewRGBA(image.Rect(0, 0, imgW, imgH))
 	// Fill background
-	draw.Draw(img, img.Bounds(), &image.Uniform{cfg.Background}, image.Point{}, draw.Src)
+	draw.Draw(rgba, rgba.Bounds(), &image.Uniform{cfg.Background}, image.Point{}, draw.Src)
 
-	face := basicfont.Face7x13
+	metrics := face.Metrics()
+	baseline := metrics.Ascent.Ceil()
 
 	for row := 0; row < rows; row++ {
 		for col := 0; col < cols; col++ {
@@ -135,20 +189,21 @@ func renderFrame(emu *vt.Emulator, cols, rows, imgW, imgH int, cfg RenderConfig)
 			y := row * cfg.CellHeight
 
 			// Draw cell background if non-default
-			if bg != cfg.Background {
+			if !colorsEqual(bg, cfg.Background) {
 				cellRect := image.Rect(x, y, x+cfg.CellWidth*cell.Width, y+cfg.CellHeight)
-				draw.Draw(img, cellRect, &image.Uniform{bg}, image.Point{}, draw.Src)
+				draw.Draw(rgba, cellRect, &image.Uniform{bg}, image.Point{}, draw.Src)
 			}
 
 			// Draw the glyph
-			drawString(img, face, x, y+cfg.CellHeight-2, cell.Content, fg)
+			drawStringRGBA(rgba, face, x, y+baseline, cell.Content, fg)
 		}
 	}
 
-	return img
+	// Quantize RGBA to paletted for GIF encoding
+	return quantizeFrame(rgba)
 }
 
-func drawString(dst *image.Paletted, face font.Face, x, y int, s string, col color.Color) {
+func drawStringRGBA(dst *image.RGBA, face font.Face, x, y int, s string, col color.Color) {
 	d := &font.Drawer{
 		Dst:  dst,
 		Src:  &image.Uniform{col},
@@ -158,26 +213,18 @@ func drawString(dst *image.Paletted, face font.Face, x, y int, s string, col col
 	d.DrawString(s)
 }
 
-func buildPalette(cfg RenderConfig) color.Palette {
-	// Basic 16-color terminal palette + bg/fg
-	return color.Palette{
-		cfg.Background,                    // 0: background
-		cfg.Foreground,                    // 1: foreground
-		color.RGBA{0, 0, 0, 255},         // 2: black
-		color.RGBA{170, 0, 0, 255},       // 3: red
-		color.RGBA{0, 170, 0, 255},       // 4: green
-		color.RGBA{170, 170, 0, 255},     // 5: yellow
-		color.RGBA{0, 0, 170, 255},       // 6: blue
-		color.RGBA{170, 0, 170, 255},     // 7: magenta
-		color.RGBA{0, 170, 170, 255},     // 8: cyan
-		color.RGBA{170, 170, 170, 255},   // 9: white
-		color.RGBA{85, 85, 85, 255},      // 10: bright black
-		color.RGBA{255, 85, 85, 255},     // 11: bright red
-		color.RGBA{85, 255, 85, 255},     // 12: bright green
-		color.RGBA{255, 255, 85, 255},    // 13: bright yellow
-		color.RGBA{85, 85, 255, 255},     // 14: bright blue
-		color.RGBA{255, 85, 255, 255},    // 15: bright magenta
-		color.RGBA{85, 255, 255, 255},    // 16: bright cyan
-		color.RGBA{255, 255, 255, 255},   // 17: bright white
-	}
+// quantizeFrame converts an RGBA image to a paletted image using
+// Floyd-Steinberg dithering against the Plan 9 palette (256 colors).
+func quantizeFrame(rgba *image.RGBA) *image.Paletted {
+	bounds := rgba.Bounds()
+	paletted := image.NewPaletted(bounds, palette.Plan9)
+	draw.FloydSteinberg.Draw(paletted, bounds, rgba, image.Point{})
+	return paletted
+}
+
+// colorsEqual compares two colors for equality.
+func colorsEqual(a, b color.Color) bool {
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+	return ar == br && ag == bg && ab == bb && aa == ba
 }

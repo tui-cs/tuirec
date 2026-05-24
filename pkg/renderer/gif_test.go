@@ -46,13 +46,17 @@ func TestRenderEmojiGIF(t *testing.T) {
 	castEvent := fmt.Sprintf(`[0.5,"o","%s"]`, escaped)
 	castFile := castHeader + "\n" + castEvent + "\n"
 
-	// Render to GIF
+	// Render to GIF using explicit cell size for deterministic assertions
+	const cellW = 8
+	const cellH = 17
 	var gifBuf bytes.Buffer
 	err := renderer.RenderGIF(
 		strings.NewReader(castFile),
 		&gifBuf,
 		renderer.RenderConfig{
-			MaxFrames: 10,
+			CellWidth:  cellW,
+			CellHeight: cellH,
+			MaxFrames:  10,
 		},
 	)
 	if err != nil {
@@ -69,32 +73,31 @@ func TestRenderEmojiGIF(t *testing.T) {
 		t.Fatalf("GIF has %d frames, want at least 2", len(decoded.Image))
 	}
 
-	// Check dimensions: 120 cols × 7px = 840w, 10 rows × 13px = 130h
+	// Check dimensions
 	bounds := decoded.Image[0].Bounds()
-	wantW := cols * 7
-	wantH := rows * 13
+	wantW := cols * cellW
+	wantH := rows * cellH
 	if bounds.Dx() != wantW || bounds.Dy() != wantH {
 		t.Errorf("GIF dimensions = %dx%d, want %dx%d", bounds.Dx(), bounds.Dy(), wantW, wantH)
 	}
 
 	// Verify NO tearing: check that row boundaries are consistent.
 	// In a correct render, row 0's emoji glyphs should produce non-background
-	// pixels in the first 32*7=224 pixel columns of the first 13 pixel rows.
-	// Row 1 should have its emoji starting at pixel row 13.
+	// pixels in the first 32*cellW pixel columns of the first cellH pixel rows.
 	lastFrame := decoded.Image[len(decoded.Image)-1]
-	if !hasContentInRegion(lastFrame, 0, 0, 224, 13) {
-		t.Error("row 0 emoji region (0-224px, row 0) has no content — possible blank render")
+	emojiPixelW := 32 * cellW
+	if !hasContentInRegion(lastFrame, 0, 0, emojiPixelW, cellH) {
+		t.Error("row 0 emoji region has no content — possible blank render")
 	}
-	if !hasContentInRegion(lastFrame, 0, 13, 224, 26) {
-		t.Error("row 1 emoji region (0-224px, row 13-26) has no content — possible tearing/drift")
+	if !hasContentInRegion(lastFrame, 0, cellH, emojiPixelW, 2*cellH) {
+		t.Error("row 1 emoji region has no content — possible tearing/drift")
 	}
 
 	// The critical tearing check: if agg's bug were present, row 1's emoji
-	// would start at a pixel offset shifted by (16 cols × 7px) = 112px.
+	// would start at a pixel offset shifted by (16 cols × cellW).
 	// With correct rendering, row 1 emoji start at x=0 (same as row 0).
-	// Check that the content pattern at row 1 matches row 0's x-alignment.
-	row0Pattern := getRowPixelPattern(lastFrame, 0, 13)
-	row1Pattern := getRowPixelPattern(lastFrame, 13, 26)
+	row0Pattern := getRowPixelPattern(lastFrame, 0, cellH)
+	row1Pattern := getRowPixelPattern(lastFrame, cellH, 2*cellH)
 	drift := detectDrift(row0Pattern, row1Pattern)
 	if drift != 0 {
 		t.Errorf("TEARING DETECTED: row 1 is shifted %d pixels from row 0 (agg-style drift)", drift)
