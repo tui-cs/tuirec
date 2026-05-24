@@ -106,7 +106,7 @@ func TestRenderEmojiGIF(t *testing.T) {
 		len(decoded.Image), bounds.Dx(), bounds.Dy(), gifBuf.Len())
 
 	// Write GIF to artifacts for visual inspection
-	outPath := "../../artifacts/charmap-emoji-xvt.gif"
+	outPath := "../../artifacts/charmap-emoji-xvt-proof.gif"
 	if err := os.MkdirAll("../../artifacts", 0o755); err == nil {
 		if err := os.WriteFile(outPath, gifBuf.Bytes(), 0o644); err != nil {
 			t.Logf("warning: could not write artifact: %v", err)
