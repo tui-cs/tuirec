@@ -9,7 +9,7 @@ Give it a binary and a keystroke script → get a polished GIF. No manual screen
 ## Install
 
 ```sh
-# Go (requires Go 1.22+)
+# Go (requires Go 1.24+)
 go install github.com/gui-cs/tuirec/cmd/tuirec@latest
 ```
 

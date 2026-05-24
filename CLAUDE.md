@@ -19,7 +19,7 @@ Active development happens on **`main`** during pre-alpha. Feature branches are 
 
 ## Build and Test
 
-Requires Go 1.22+ and `agg` (for integration tests that produce GIFs).
+Requires Go 1.24+ and `agg` (for integration tests that produce GIFs).
 
 ```sh
 go build ./...
