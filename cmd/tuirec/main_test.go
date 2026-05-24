@@ -102,6 +102,9 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 	if got.DrainDuration.String() != "750ms" {
 		t.Fatalf("DrainDuration = %s", got.DrainDuration)
 	}
+	if !got.Trim {
+		t.Fatal("Trim = false, want true")
+	}
 	if got.Size.Cols != 80 || got.Size.Rows != 24 {
 		t.Fatalf("Size = %#v", got.Size)
 	}
@@ -405,6 +408,7 @@ func TestRecordHelpSnapshot(t *testing.T) {
 		"--cast-output string",
 		"--agg-path string",
 		"--max-duration int",
+		"--trim",
 		"--line-height float",
 		"--name string",
 	} {

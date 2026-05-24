@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,58 @@ func TestRunInlineModeOmitsAlternateScreen(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("cast missing %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestTrimCastRemovesANSIPreRollAndAltScreenPostRoll(t *testing.T) {
+	t.Parallel()
+
+	castPath := filepath.Join(t.TempDir(), "recording.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":80,"height":24}`,
+		"[0,\"o\",\"\\u001b[?1049h\\u001b[2J\"]",
+		"[0.3,\"o\",\"\\u001b[1;1H\"]",
+		"[0.4,\"o\",\"\\u001b[1;1HHello\"]",
+		"[0.6,\"o\",\" world\"]",
+		"[0.8,\"o\",\"\\u001b[?1049l\\u001b[2J\"]",
+		"[0.9,\"o\",\"after exit\"]",
+		"",
+	}, "\n")
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	if err := trimCast(castPath); err != nil {
+		t.Fatalf("trimCast: %v", err)
+	}
+
+	trimmed, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(trimmed)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("trimmed lines = %d, want 3:\n%s", len(lines), trimmed)
+	}
+
+	first, ok, err := parseOutputEvent([]byte(lines[1]))
+	if err != nil || !ok {
+		t.Fatalf("parse first output = %#v, %t, %v", first, ok, err)
+	}
+	if first.time != 0 || first.output != "\x1b[1;1HHello" {
+		t.Fatalf("first event = %#v", first)
+	}
+
+	second, ok, err := parseOutputEvent([]byte(lines[2]))
+	if err != nil || !ok {
+		t.Fatalf("parse second output = %#v, %t, %v", second, ok, err)
+	}
+	if math.Abs(second.time-0.2) > 0.000001 || second.output != " world" {
+		t.Fatalf("second event = %#v", second)
+	}
+
+	if strings.Contains(string(trimmed), "1049l") || strings.Contains(string(trimmed), "after exit") {
+		t.Fatalf("trimmed cast kept postroll:\n%s", trimmed)
 	}
 }
 

@@ -223,6 +223,7 @@ pacing to stderr.`,
 	cmd.Flags().StringVar(&flags.config.Title, "title", "", "Title embedded in the cast file")
 	cmd.Flags().StringVar(&flags.config.GIF.AggPath, "agg-path", flags.config.GIF.AggPath, "Path to agg binary")
 	cmd.Flags().IntVar(&flags.drainMS, "drain", flags.drainMS, "Milliseconds to keep recording after keystrokes finish")
+	cmd.Flags().BoolVar(&flags.config.Trim, "trim", flags.config.Trim, "Trim ANSI-only preroll and alternate-screen-exit postroll from the cast before rendering")
 	cmd.Flags().StringVar(&flags.verbosity, "verbosity", flags.verbosity, "Output verbosity: quiet, normal, or high")
 	cmd.Flags().BoolVar(&flags.kittyKeyboard, "kitty-keyboard", false, "Enable Kitty keyboard protocol: encode keystrokes as CSI u and respond to app mode queries")
 	cmd.Flags().StringVar(&flags.mousePointer, "mouse-pointer", "clicks", "Mouse pointer indicator mode: none, clicks, or all")
@@ -365,6 +366,7 @@ func defaultRecordFlags() *recordFlags {
 			Output:     "recording.gif",
 			Keystrokes: "wait:3000,Ctrl+C",
 			Size:       pty.Size{Cols: 120, Rows: 30},
+			Trim:       true,
 			GIF: gif.Config{
 				AggPath:    defaultAggPath(),
 				Theme:      "monokai",
