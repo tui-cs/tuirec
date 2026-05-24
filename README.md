@@ -28,10 +28,10 @@ $gobin = "$(go env GOPATH)\bin"
 
 Verify: `tuirec --version`
 
-Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned `agg v1.5.0` binary next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
+Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned `agg v1.8.1` binary next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.5.0` renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.5.0/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.5.0\` on Windows). You can also pass `--agg-path` explicitly.
+**Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.8.1` renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.8.1/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.8.1\` on Windows). You can also pass `--agg-path` explicitly.
 
 ## Build and Run Locally on Windows
 
@@ -62,12 +62,12 @@ To install the pinned `agg` binary locally for demos on Windows:
 ```powershell
 New-Item -ItemType Directory -Force .\tools | Out-Null
 Invoke-WebRequest `
-  https://github.com/asciinema/agg/releases/download/v1.5.0/agg-x86_64-pc-windows-msvc.exe `
+  https://github.com/asciinema/agg/releases/download/v1.8.1/agg-x86_64-pc-windows-msvc.exe `
   -OutFile .\tools\agg.exe
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, upstream `agg v1.5.0` does not publish a native ARM64 Windows binary. The Windows ARM64 tuirec release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
+On Windows ARM64, upstream `agg v1.8.1` does not publish a native ARM64 Windows binary. The Windows ARM64 tuirec release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 

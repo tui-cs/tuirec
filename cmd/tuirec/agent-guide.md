@@ -18,7 +18,7 @@ can use this as context to drive `tuirec record` directly.
 ```
 
 > **Note:** `tuirec record` auto-downloads `agg` if not found on PATH or in the
-> cache (`~/.cache/tuirec/agg-v1.5.0/`). No separate setup needed.
+> cache (`~/.cache/tuirec/agg-v1.8.1/`). No separate setup needed.
 >
 > **From source:** If `tuirec` is not on PATH, build it first with
 > `go build -o tuirec.exe ./cmd/tuirec` (Windows) or
