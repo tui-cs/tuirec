@@ -597,7 +597,7 @@ func hasVisibleOutput(output string) bool {
 			continue
 		}
 
-		if !unicode.IsControl(r) && unicode.IsGraphic(r) && !unicode.IsSpace(r) {
+		if unicode.IsGraphic(r) && !unicode.IsSpace(r) {
 			return true
 		}
 		i += size

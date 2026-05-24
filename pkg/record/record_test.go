@@ -18,6 +18,8 @@ import (
 	"github.com/gui-cs/tuirec/pkg/recorder"
 )
 
+const floatTolerance = 1e-6
+
 func TestRunRecordsKeystrokesAndRenders(t *testing.T) {
 	originalStartPTY := startPTY
 	fakeSession := newFakeSession()
@@ -197,7 +199,7 @@ func TestTrimCastRemovesANSIPreRollAndAltScreenPostRoll(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("parse second output = %#v, %t, %v", second, ok, err)
 	}
-	if math.Abs(second.time-0.2) > 0.000001 || second.output != " world" {
+	if math.Abs(second.time-0.2) > floatTolerance || second.output != " world" {
 		t.Fatalf("second event = %#v", second)
 	}
 
