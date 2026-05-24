@@ -17,7 +17,7 @@ type asset struct {
 }
 
 func main() {
-	version := flag.String("version", "v1.5.0", "agg release version")
+	version := flag.String("version", "v1.8.1", "agg release version")
 	outputDir := flag.String("output", filepath.Join("build", "agg"), "output directory")
 	flag.Parse()
 
@@ -35,7 +35,7 @@ func downloadAssets(version, outputDir string) error {
 		{target: "linux_amd64", name: "agg-x86_64-unknown-linux-musl", output: "agg"},
 		{target: "linux_arm64", name: "agg-aarch64-unknown-linux-gnu", output: "agg"},
 		{target: "windows_amd64", name: "agg-x86_64-pc-windows-msvc.exe", output: "agg.exe"},
-		// Upstream agg v1.5.0 does not publish a native Windows ARM64 binary.
+		// Upstream agg v1.8.1 does not publish a native Windows ARM64 binary.
 		// Windows ARM64 can run the x64 binary through OS emulation.
 		{target: "windows_arm64", name: "agg-x86_64-pc-windows-msvc.exe", output: "agg.exe"},
 	}

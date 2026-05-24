@@ -12,7 +12,7 @@ import (
 
 const (
 	// DefaultAggVersion is the agg release version downloaded when auto-fetching.
-	DefaultAggVersion = "v1.5.0"
+	DefaultAggVersion = "v1.8.1"
 
 	aggCacheDirName = "tuirec"
 )
