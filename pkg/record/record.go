@@ -2,12 +2,17 @@
 package record
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gui-cs/tuirec/pkg/gif"
 	"github.com/gui-cs/tuirec/pkg/keystroke"
@@ -65,6 +70,7 @@ type Config struct {
 	Renderer       Renderer
 	LogWriter      io.Writer
 	Verbose        bool
+	Trim           bool
 }
 
 // Result describes files produced by a recording run.
@@ -198,6 +204,12 @@ func Run(parent context.Context, config Config) (Result, error) {
 	result := Result{CastPath: config.CastOutput}
 	if runErr != nil {
 		return result, runErr
+	}
+
+	if config.Trim {
+		if err := trimCast(config.CastOutput); err != nil {
+			return result, err
+		}
 	}
 
 	if config.Output == "" {
@@ -434,6 +446,224 @@ func wait(ctx context.Context, duration time.Duration, clock recorder.Clock) err
 
 		return ctx.Err()
 	}
+}
+
+func trimCast(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read cast for trim: %w", err)
+	}
+
+	lines := bytes.Split(bytes.TrimRight(data, "\n"), []byte("\n"))
+	if len(lines) <= 1 {
+		return nil
+	}
+
+	out := make([][]byte, 0, len(lines))
+	out = append(out, lines[0])
+
+	// Collect setup events (non-visible) before the first visible frame.
+	// These are kept in the output with timestamps rebased to 0 so that
+	// functional sequences like ESC[?1049h (enter alternate screen) are
+	// not lost.
+	var setup []outputEvent
+	var offset float64
+	started := false
+	for _, line := range lines[1:] {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		event, ok, err := parseOutputEvent(line)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			if started {
+				out = append(out, line)
+			}
+			continue
+		}
+
+		stop := false
+		if idx := leaveAltScreenIndex(event.output); idx >= 0 {
+			event.output = event.output[:idx]
+			stop = true
+		}
+
+		if !started {
+			if !hasVisibleOutput(event.output) {
+				if event.output != "" {
+					setup = append(setup, event)
+				}
+				if stop {
+					break
+				}
+				continue
+			}
+			started = true
+			offset = event.time
+			// Flush setup events with timestamps rebased to 0.
+			for _, s := range setup {
+				s.time = 0
+				encoded, err := marshalOutputEvent(s)
+				if err != nil {
+					return err
+				}
+				out = append(out, encoded)
+			}
+		}
+
+		if event.output != "" {
+			event.time -= offset
+			if event.time < 0 {
+				event.time = 0
+			}
+			encoded, err := marshalOutputEvent(event)
+			if err != nil {
+				return err
+			}
+			out = append(out, encoded)
+		}
+		if stop {
+			break
+		}
+	}
+
+	var trimmed bytes.Buffer
+	for _, line := range out {
+		trimmed.Write(line)
+		trimmed.WriteByte('\n')
+	}
+
+	if err := os.WriteFile(path, trimmed.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("write trimmed cast: %w", err)
+	}
+
+	return nil
+}
+
+type outputEvent struct {
+	time   float64
+	output string
+}
+
+func parseOutputEvent(line []byte) (outputEvent, bool, error) {
+	var raw []json.RawMessage
+	if err := json.Unmarshal(line, &raw); err != nil {
+		return outputEvent{}, false, fmt.Errorf("parse cast event: %w", err)
+	}
+	if len(raw) < 3 {
+		return outputEvent{}, false, nil
+	}
+
+	var kind string
+	if err := json.Unmarshal(raw[1], &kind); err != nil || kind != "o" {
+		return outputEvent{}, false, nil
+	}
+
+	var event outputEvent
+	if err := json.Unmarshal(raw[0], &event.time); err != nil {
+		return outputEvent{}, false, fmt.Errorf("parse cast event time: %w", err)
+	}
+	if err := json.Unmarshal(raw[2], &event.output); err != nil {
+		return outputEvent{}, false, fmt.Errorf("parse cast output: %w", err)
+	}
+
+	return event, true, nil
+}
+
+func marshalOutputEvent(event outputEvent) ([]byte, error) {
+	line, err := json.Marshal([]any{event.time, "o", event.output})
+	if err != nil {
+		return nil, fmt.Errorf("marshal trimmed cast event: %w", err)
+	}
+
+	return line, nil
+}
+
+func leaveAltScreenIndex(output string) int {
+	idx := -1
+	for _, sequence := range []string{
+		"\x1b[?1049l",
+		"\x1b[?1047l",
+		"\x1b[?47l",
+	} {
+		if sequenceIdx := strings.Index(output, sequence); sequenceIdx >= 0 && (idx == -1 || sequenceIdx < idx) {
+			idx = sequenceIdx
+		}
+	}
+
+	return idx
+}
+
+func hasVisibleOutput(output string) bool {
+	for i := 0; i < len(output); {
+		r, size := utf8.DecodeRuneInString(output[i:])
+		if r == utf8.RuneError && size == 1 {
+			i++
+			continue
+		}
+
+		if r == '\x1b' {
+			i = skipEscape(output, i)
+			continue
+		}
+		if r == '\x9b' {
+			i = skipCSI(output, i+size)
+			continue
+		}
+
+		if unicode.IsGraphic(r) && !unicode.IsSpace(r) {
+			return true
+		}
+		i += size
+	}
+
+	return false
+}
+
+func skipEscape(s string, i int) int {
+	i++
+	if i >= len(s) {
+		return i
+	}
+
+	switch s[i] {
+	case '[':
+		return skipCSI(s, i+1)
+	case ']':
+		return skipStringEscape(s, i+1)
+	default:
+		_, size := utf8.DecodeRuneInString(s[i:])
+		return i + size
+	}
+}
+
+func skipCSI(s string, i int) int {
+	for i < len(s) {
+		b := s[i]
+		i++
+		if b >= 0x40 && b <= 0x7e {
+			break
+		}
+	}
+
+	return i
+}
+
+func skipStringEscape(s string, i int) int {
+	for i < len(s) {
+		if s[i] == '\a' {
+			return i + 1
+		}
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
+			return i + 2
+		}
+		i++
+	}
+
+	return i
 }
 
 func logf(config Config, format string, args ...any) {

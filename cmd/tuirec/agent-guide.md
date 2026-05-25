@@ -101,9 +101,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   startup-delay + input-delay + sum(waits) +
   (`literal_char_count × keystroke-delay`) +
   (`non_literal_key_count × keystroke-delay`) + drain.
-- **First frame may be blank** — `--startup-delay` records the alt-screen
-  transition as the initial frame. The actual UI appears after the delay. This
-  is normal; the blank frame is brief in the GIF.
+- **First frame timing** — `--trim` (enabled by default) rebases timestamps so
+  the first visible output starts at t=0 and removes post-alt-screen-exit
+  noise. Setup sequences (e.g. alt-screen enter) are preserved. Disable with
+  `--trim=false` if you need the raw timing.
 - **Verifying recording content** — after recording, check the `.cast` file for
   expected output strings (e.g. `grep "1966-09-10" demo.cast` or `tail` the
   cast to see the final printed output). Post-exit terminal noise (stderr from
@@ -479,6 +480,7 @@ path.
 | `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
 | `--args` | No | — | Argument to pass to the binary (repeatable: one `--args` per token) |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
+| `--trim` | No | true | Rebase cast to first visible output and trim alternate-screen-exit postroll |
 | `--open` | No | false | Open the GIF in the default viewer after recording |
 | `--copy` | No | false | Copy the GIF file path to the system clipboard |
 

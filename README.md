@@ -113,7 +113,9 @@ automatically. `--open` launches the GIF in the default viewer; `--copy` puts
 the GIF path on the clipboard.
 
 Use `--show-command` to add a synthetic shell prompt/command pre-roll to the
-GIF before the target app starts. `--startup-delay` waits after the target
+GIF before the target app starts. `--trim` (enabled by default) rebases
+timestamps to the first visible output and removes post-alt-screen-exit noise
+while preserving setup sequences. `--startup-delay` waits after the target
 starts before copying its output and playing input. `--drain` keeps recording
 after the last keystroke so the final UI state is visible. For troubleshooting,
 `--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
