@@ -462,6 +462,11 @@ func trimCast(path string) error {
 	out := make([][]byte, 0, len(lines))
 	out = append(out, lines[0])
 
+	// Collect setup events (non-visible) before the first visible frame.
+	// These are kept in the output with timestamps rebased to 0 so that
+	// functional sequences like ESC[?1049h (enter alternate screen) are
+	// not lost.
+	var setup []outputEvent
 	var offset float64
 	started := false
 	for _, line := range lines[1:] {
@@ -488,6 +493,9 @@ func trimCast(path string) error {
 
 		if !started {
 			if !hasVisibleOutput(event.output) {
+				if event.output != "" {
+					setup = append(setup, event)
+				}
 				if stop {
 					break
 				}
@@ -495,6 +503,15 @@ func trimCast(path string) error {
 			}
 			started = true
 			offset = event.time
+			// Flush setup events with timestamps rebased to 0.
+			for _, s := range setup {
+				s.time = 0
+				encoded, err := marshalOutputEvent(s)
+				if err != nil {
+					return err
+				}
+				out = append(out, encoded)
+			}
 		}
 
 		if event.output != "" {

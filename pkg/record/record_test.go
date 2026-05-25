@@ -156,7 +156,7 @@ func TestRunInlineModeOmitsAlternateScreen(t *testing.T) {
 	}
 }
 
-func TestTrimCastRemovesANSIPreRollAndAltScreenPostRoll(t *testing.T) {
+func TestTrimCastPreservesSetupAndTrimsPostRoll(t *testing.T) {
 	t.Parallel()
 
 	castPath := filepath.Join(t.TempDir(), "recording.cast")
@@ -183,28 +183,114 @@ func TestTrimCastRemovesANSIPreRollAndAltScreenPostRoll(t *testing.T) {
 		t.Fatalf("read cast: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(trimmed)), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("trimmed lines = %d, want 3:\n%s", len(lines), trimmed)
+	// Header + 2 setup events + 2 visible events = 5 lines
+	if len(lines) != 5 {
+		t.Fatalf("trimmed lines = %d, want 5:\n%s", len(lines), trimmed)
 	}
 
-	first, ok, err := parseOutputEvent([]byte(lines[1]))
+	// Setup events are preserved with timestamps rebased to 0.
+	setup1, ok, err := parseOutputEvent([]byte(lines[1]))
 	if err != nil || !ok {
-		t.Fatalf("parse first output = %#v, %t, %v", first, ok, err)
+		t.Fatalf("parse setup1 = %#v, %t, %v", setup1, ok, err)
+	}
+	if setup1.time != 0 || setup1.output != "\x1b[?1049h\x1b[2J" {
+		t.Fatalf("setup1 = %#v", setup1)
+	}
+
+	setup2, ok, err := parseOutputEvent([]byte(lines[2]))
+	if err != nil || !ok {
+		t.Fatalf("parse setup2 = %#v, %t, %v", setup2, ok, err)
+	}
+	if setup2.time != 0 || setup2.output != "\x1b[1;1H" {
+		t.Fatalf("setup2 = %#v", setup2)
+	}
+
+	// First visible event starts at t=0.
+	first, ok, err := parseOutputEvent([]byte(lines[3]))
+	if err != nil || !ok {
+		t.Fatalf("parse first visible = %#v, %t, %v", first, ok, err)
 	}
 	if first.time != 0 || first.output != "\x1b[1;1HHello" {
-		t.Fatalf("first event = %#v", first)
+		t.Fatalf("first visible = %#v", first)
 	}
 
-	second, ok, err := parseOutputEvent([]byte(lines[2]))
+	// Second visible event is rebased relative to the first.
+	second, ok, err := parseOutputEvent([]byte(lines[4]))
 	if err != nil || !ok {
-		t.Fatalf("parse second output = %#v, %t, %v", second, ok, err)
+		t.Fatalf("parse second visible = %#v, %t, %v", second, ok, err)
 	}
 	if math.Abs(second.time-0.2) > floatTolerance || second.output != " world" {
-		t.Fatalf("second event = %#v", second)
+		t.Fatalf("second visible = %#v", second)
 	}
 
+	// Postroll (alt-screen exit and anything after) must be trimmed.
 	if strings.Contains(string(trimmed), "1049l") || strings.Contains(string(trimmed), "after exit") {
 		t.Fatalf("trimmed cast kept postroll:\n%s", trimmed)
+	}
+}
+
+func TestTrimCastPreservesCommandPreRollForShowCommand(t *testing.T) {
+	t.Parallel()
+
+	// Simulates a cast produced with --show-command on a fullscreen app:
+	// writeCommandPreRoll emits ESC[?1049h then characters, then the app
+	// starts. Trim must keep the alt-screen-enter so the command text
+	// renders in the same buffer as the app.
+	castPath := filepath.Join(t.TempDir(), "recording.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":80,"height":24}`,
+		"[0,\"o\",\"\\u001b[?1049h\"]",
+		"[0.05,\"o\",\"P\"]",
+		"[0.1,\"o\",\"S\"]",
+		"[0.15,\"o\",\">\"]",
+		"[0.5,\"o\",\"\\r\\n\"]",
+		"[1.0,\"o\",\"\\u001b[2J\\u001b[1;1HApp UI\"]",
+		"[2.0,\"o\",\"\\u001b[?1049l\"]",
+		"",
+	}, "\n")
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	if err := trimCast(castPath); err != nil {
+		t.Fatalf("trimCast: %v", err)
+	}
+
+	trimmed, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+
+	// The alt-screen-enter must be preserved.
+	if !strings.Contains(string(trimmed), `\u001b[?1049h`) {
+		t.Fatalf("trimmed cast lost alt-screen-enter:\n%s", trimmed)
+	}
+
+	// The command characters (P, S, >) must be present as the first
+	// visible content and start at t=0.
+	lines := strings.Split(strings.TrimSpace(string(trimmed)), "\n")
+	// Find first event with visible text.
+	foundVisible := false
+	for _, line := range lines[1:] {
+		ev, ok, err := parseOutputEvent([]byte(line))
+		if err != nil || !ok {
+			continue
+		}
+		if hasVisibleOutput(ev.output) {
+			if ev.time != 0 {
+				t.Fatalf("first visible event time = %f, want 0", ev.time)
+			}
+			foundVisible = true
+			break
+		}
+	}
+	if !foundVisible {
+		t.Fatalf("no visible event found in trimmed cast:\n%s", trimmed)
+	}
+
+	// Postroll must be gone.
+	if strings.Contains(string(trimmed), `\u001b[?1049l`) {
+		t.Fatalf("trimmed cast kept alt-screen-exit:\n%s", trimmed)
 	}
 }
 
