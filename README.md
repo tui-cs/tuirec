@@ -4,7 +4,7 @@
 
 Give it a binary and a keystroke script → get a polished GIF or PNG. No manual screen recording, no browser-based tools.
 
-![tuirec demo — recording UICatalog](artifacts/hero.gif)
+![tuirec demo — recording UICatalog](artifacts/hero.png)
 
 ## Install
 
