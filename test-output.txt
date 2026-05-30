@@ -1,0 +1,17 @@
+go: downloading golang.org/x/sys v0.8.0
+go: downloading github.com/spf13/cobra v1.10.2
+go: downloading github.com/spf13/pflag v1.0.9
+go: downloading github.com/creack/pty v1.1.24
+ok  	github.com/gui-cs/tuirec/cmd/tuirec	0.006s
+?   	github.com/gui-cs/tuirec/examples/internal/demoagg	[no test files]
+?   	github.com/gui-cs/tuirec/examples/record-pipeline	[no test files]
+?   	github.com/gui-cs/tuirec/examples/render-gif	[no test files]
+?   	github.com/gui-cs/tuirec/internal/release/downloadagg	[no test files]
+?   	github.com/gui-cs/tuirec/internal/testapp	[no test files]
+ok  	github.com/gui-cs/tuirec/pkg/gif	0.005s
+ok  	github.com/gui-cs/tuirec/pkg/keystroke	0.006s
+ok  	github.com/gui-cs/tuirec/pkg/png	0.015s
+ok  	github.com/gui-cs/tuirec/pkg/pointer	0.004s
+ok  	github.com/gui-cs/tuirec/pkg/pty	0.205s
+ok  	github.com/gui-cs/tuirec/pkg/record	0.014s
+ok  	github.com/gui-cs/tuirec/pkg/recorder	0.002s
