@@ -8,6 +8,7 @@ import (
 	stdpng "image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/gui-cs/tuirec/pkg/gif"
@@ -114,6 +115,23 @@ func writeFakeAgg(t *testing.T) string {
 
 	template := filepath.Join(t.TempDir(), "template.gif")
 	writeTemplateGIF(t, template)
+
+	if runtime.GOOS == "windows" {
+		path := filepath.Join(t.TempDir(), "fake-agg.cmd")
+		script := "@echo off\r\n" +
+			"set out=\r\n" +
+			":loop\r\n" +
+			"if \"%~1\"==\"\" goto done\r\n" +
+			"set out=%~1\r\n" +
+			"shift\r\n" +
+			"goto loop\r\n" +
+			":done\r\n" +
+			"copy /Y \"" + template + "\" \"%out%\" >nul\r\n"
+		if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+			t.Fatalf("write fake agg: %v", err)
+		}
+		return path
+	}
 
 	path := filepath.Join(t.TempDir(), "fake-agg.sh")
 	script := `#!/usr/bin/env sh
