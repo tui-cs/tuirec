@@ -1,8 +1,8 @@
 # tuirec
 
-**Cross-platform CLI that records any terminal app and produces an animated GIF.**
+**Cross-platform CLI that records any terminal app and produces animated GIFs or still PNG snapshots.**
 
-Give it a binary and a keystroke script → get a polished GIF. No manual screen recording, no browser-based tools.
+Give it a binary and a keystroke script → get a polished GIF or PNG. No manual screen recording, no browser-based tools.
 
 ![tuirec demo — recording UICatalog](artifacts/hero.gif)
 
