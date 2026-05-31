@@ -25,6 +25,8 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 		"record",
 		"--binary", "demo-app",
 		"--args", "one,two",
+		"--env", "DOTNET_ROOT=/dotnet",
+		"--env", "PATH=/usr/bin",
 		"--output", "demo.gif",
 		"--cast-output", "demo.cast",
 		"--keystrokes", "wait:10,Ctrl+Q",
@@ -70,9 +72,13 @@ func TestRecordCommandParsesFlags(t *testing.T) {
 	if strings.Join(got.Args, ",") != "one,two" {
 		t.Fatalf("Args = %#v", got.Args)
 	}
+	if strings.Join(got.Env, ",") != "DOTNET_ROOT=/dotnet,PATH=/usr/bin" {
+		t.Fatalf("Env = %#v", got.Env)
+	}
 	if got.Output != "demo.gif" || got.CastOutput != "demo.cast" {
 		t.Fatalf("outputs = %q %q", got.Output, got.CastOutput)
 	}
+
 	if got.Keystrokes != "wait:10,Ctrl+Q" {
 		t.Fatalf("Keystrokes = %q", got.Keystrokes)
 	}
@@ -751,6 +757,136 @@ func TestSnapshotCommandParsesFlags(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "Wrote demo.png") || !strings.Contains(output, "Wrote demo.cast") {
 		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestSnapshotCommandPassesArgsAfterDash(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--args", "one,two",
+		"--",
+		"three", "four",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+	if strings.Join(got.Args, ",") != "one,two,three,four" {
+		t.Fatalf("Args = %#v", got.Args)
+	}
+}
+
+func TestSnapshotCommandAssertContainsAndPrintFrameText(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--assert-contains", "Multiple Pages Up",
+		"--assert-not-contains", "Unhandled",
+		"--print-frame-text",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			data := strings.Join([]string{
+				`{"version":2,"width":40,"height":4}`,
+				`[0.1,"o","Multiple Pages Up"]`,
+			}, "\n") + "\n"
+			if err := os.WriteFile(config.CastOutput, []byte(data), 0o600); err != nil {
+				t.Fatalf("write cast: %v", err)
+			}
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d; stderr=%s", code, exitSuccess, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "Frame text:") || !strings.Contains(stderr.String(), "Multiple Pages Up") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestSnapshotCommandAssertContainsFailure(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--assert-contains", "needle",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			data := strings.Join([]string{
+				`{"version":2,"width":20,"height":2}`,
+				`[0.1,"o","haystack"]`,
+			}, "\n") + "\n"
+			if err := os.WriteFile(config.CastOutput, []byte(data), 0o600); err != nil {
+				t.Fatalf("write cast: %v", err)
+			}
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != 1 {
+		t.Fatalf("execute code = %d, want 1; stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "snapshot assertion failed") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestSnapshotCommandAssertionsUseSelectedFrame(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--frame", "at:500",
+		"--assert-contains", "before",
+		"--assert-not-contains", "after",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			data := strings.Join([]string{
+				`{"version":2,"width":20,"height":2}`,
+				`[0.1,"o","before"]`,
+				`[1.1,"o","\r\u001b[2Kafter"]`,
+			}, "\n") + "\n"
+			if err := os.WriteFile(config.CastOutput, []byte(data), 0o600); err != nil {
+				t.Fatalf("write cast: %v", err)
+			}
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d; stderr=%s", code, exitSuccess, stderr.String())
 	}
 }
 

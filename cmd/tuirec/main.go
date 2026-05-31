@@ -83,6 +83,8 @@ type cliOptions struct {
 type recordFlags struct {
 	config             record.Config
 	args               []string
+	assertContains     []string
+	assertNotContains  []string
 	name               string
 	outputExplicit     bool
 	castOutputExplicit bool
@@ -100,6 +102,7 @@ type recordFlags struct {
 	copyPath           bool
 	verbosity          string
 	frame              string
+	printFrameText     bool
 }
 
 func main() {
@@ -186,15 +189,22 @@ the target starts. Use --startup-delay to wait before copying target output,
 --input-delay to pace scripted input, and --verbosity high to log keys and
 pacing to stderr.`,
 		Args: func(cmd *cobra.Command, args []string) error {
+			if cmd.ArgsLenAtDash() >= 0 {
+				if cmd.ArgsLenAtDash() != 0 {
+					return usageError(fmt.Errorf("unexpected positional args before --: %q", args[:cmd.ArgsLenAtDash()]))
+				}
+				return nil
+			}
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return usageError(err)
 			}
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.outputExplicit = cmd.Flags().Changed("output")
 			flags.castOutputExplicit = cmd.Flags().Changed("cast-output")
+			flags.args = append(flags.args, args...)
 			return runRecord(cmd.Context(), options, flags)
 		},
 	}
@@ -204,6 +214,7 @@ pacing to stderr.`,
 
 	cmd.Flags().StringVar(&flags.config.Binary, "binary", "", "Path to executable to record")
 	cmd.Flags().StringSliceVar(&flags.args, "args", nil, "Arguments to pass to the binary")
+	cmd.Flags().StringArrayVar(&flags.config.Env, "env", nil, "Environment variable to set for child process (repeatable KEY=VALUE)")
 	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output GIF path")
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
 	cmd.Flags().StringVar(&flags.name, "name", "", "Short name for the recording; sets --output artifacts/<name>.gif and --cast-output artifacts/<name>.cast unless explicitly set")
@@ -249,15 +260,22 @@ This command records a cast using the same PTY pipeline as "record", then
 renders one selected frame to PNG. Use --frame to pick last, a frame index,
 or a timeline point in milliseconds (at:<ms>).`,
 		Args: func(cmd *cobra.Command, args []string) error {
+			if cmd.ArgsLenAtDash() >= 0 {
+				if cmd.ArgsLenAtDash() != 0 {
+					return usageError(fmt.Errorf("unexpected positional args before --: %q", args[:cmd.ArgsLenAtDash()]))
+				}
+				return nil
+			}
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return usageError(err)
 			}
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.outputExplicit = cmd.Flags().Changed("output")
 			flags.castOutputExplicit = cmd.Flags().Changed("cast-output")
+			flags.args = append(flags.args, args...)
 			return runSnapshot(cmd.Context(), options, flags)
 		},
 	}
@@ -267,11 +285,15 @@ or a timeline point in milliseconds (at:<ms>).`,
 
 	cmd.Flags().StringVar(&flags.config.Binary, "binary", "", "Path to executable to snapshot")
 	cmd.Flags().StringSliceVar(&flags.args, "args", nil, "Arguments to pass to the binary")
+	cmd.Flags().StringArrayVar(&flags.config.Env, "env", nil, "Environment variable to set for child process (repeatable KEY=VALUE)")
 	cmd.Flags().StringVar(&flags.config.Output, "output", flags.config.Output, "Output PNG path")
 	cmd.Flags().StringVar(&flags.config.CastOutput, "cast-output", "", "Also save the raw asciinema cast file")
 	cmd.Flags().StringVar(&flags.name, "name", "", "Short name for the snapshot; sets --output artifacts/<name>.png and --cast-output artifacts/<name>.cast unless explicitly set")
 	cmd.Flags().StringVar(&flags.config.Keystrokes, "keystrokes", flags.config.Keystrokes, "Comma-separated script: wait:<ms>, click:col:row, Ctrl+click:col:row, move:col:row, backtick-quoted literal text, or Terminal.Gui Key strings")
 	cmd.Flags().StringVar(&flags.frame, "frame", flags.frame, "Snapshot frame: last, <index>, or at:<ms>")
+	cmd.Flags().BoolVar(&flags.printFrameText, "print-frame-text", false, "Print the reconstructed terminal frame text to stderr")
+	cmd.Flags().StringArrayVar(&flags.assertContains, "assert-contains", nil, "Fail if reconstructed frame text does not contain substring (repeatable)")
+	cmd.Flags().StringArrayVar(&flags.assertNotContains, "assert-not-contains", nil, "Fail if reconstructed frame text contains substring (repeatable)")
 	cmd.Flags().IntVar(&flags.keystrokeDelayMS, "keystroke-delay", flags.keystrokeDelayMS, "Default pause between keystrokes in milliseconds")
 	cmd.Flags().IntVar(&flags.inputDelayMS, "input-delay", flags.inputDelayMS, "Milliseconds to wait before playing the keystroke script")
 	cmd.Flags().IntVar(&flags.startupDelayMS, "startup-delay", flags.startupDelayMS, "Milliseconds to wait after starting the target before copying output and key input")
@@ -703,6 +725,27 @@ func runSnapshot(ctx context.Context, options cliOptions, flags *recordFlags) er
 	result, err := options.run(ctx, config)
 	if err != nil {
 		return classifyRunError(err)
+	}
+
+	if flags.printFrameText || len(flags.assertContains) > 0 || len(flags.assertNotContains) > 0 {
+		frameText, err := record.ExtractFrameTextForSelection(result.CastPath, flags.frame)
+		if err != nil {
+			return fmt.Errorf("extract frame text: %w", err)
+		}
+		if flags.printFrameText {
+			fmt.Fprintln(options.stderr, "Frame text:")
+			fmt.Fprintln(options.stderr, frameText)
+		}
+		for _, needle := range flags.assertContains {
+			if !strings.Contains(frameText, needle) {
+				return fmt.Errorf("snapshot assertion failed: frame text missing %q", needle)
+			}
+		}
+		for _, needle := range flags.assertNotContains {
+			if strings.Contains(frameText, needle) {
+				return fmt.Errorf("snapshot assertion failed: frame text unexpectedly contained %q", needle)
+			}
+		}
 	}
 
 	if flags.verbosity != "quiet" && result.GIFPath != "" {

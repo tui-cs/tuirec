@@ -175,6 +175,7 @@ If running inside a restricted agent sandbox that blocks PTY-spawning commands:
 | Relative `--binary` path on Windows | Go security error | Use absolute path or `./` prefix |
 | Double-quoting `--keystrokes` in bash | Shell expands backticks as commands | Use single quotes: `'wait:1000,`ls`,Enter'` |
 | `--args "edit ./file.cs"` (space-separated) | Passed as one argument | Use `--args edit,./file.cs` or repeat flag |
+| Runtime not found (`DOTNET_ROOT`/`PATH`) in PTY child | Exit 0 with error/help screen capture | Export env before launch or pass `--env KEY=VALUE` |
 
 ---
 
@@ -482,8 +483,12 @@ path.
 | `--verbosity` | No | `normal` | `quiet`, `normal`, or `high` |
 | `--kitty-keyboard` | No | false | Enable Kitty keyboard protocol for modifier disambiguation |
 | `--args` | No | — | Argument to pass to the binary (repeatable: one `--args` per token) |
+| `--env` | No | — | Environment entry for PTY child (`KEY=VALUE`, repeatable) |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
 | `--trim` | No | true | Rebase cast to first visible output and trim alternate-screen-exit postroll |
+| `--assert-contains` | No | — | Snapshot only: fail if reconstructed frame text does not contain substring |
+| `--assert-not-contains` | No | — | Snapshot only: fail if reconstructed frame text contains substring |
+| `--print-frame-text` | No | false | Snapshot only: print reconstructed frame text to stderr |
 | `--open` | No | false | Open the output image/GIF in the default viewer after capture |
 | `--copy` | No | false | Copy the output file path to the system clipboard |
 
