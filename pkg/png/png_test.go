@@ -190,3 +190,34 @@ func TestSelectFrameAtUsesTimeline(t *testing.T) {
 		t.Fatalf("index = %d, want 1", index)
 	}
 }
+
+func TestComposeFrameCompositesPartialFrames(t *testing.T) {
+	t.Parallel()
+
+	basePalette := color.Palette{
+		color.RGBA{R: 255, G: 0, B: 0, A: 255},
+	}
+	base := image.NewPaletted(image.Rect(0, 0, 2, 2), basePalette)
+	for i := range base.Pix {
+		base.Pix[i] = 0
+	}
+
+	overlayPalette := color.Palette{
+		color.RGBA{0, 0, 0, 0},
+		color.RGBA{R: 0, G: 255, B: 0, A: 255},
+	}
+	overlay := image.NewPaletted(image.Rect(1, 1, 2, 2), overlayPalette)
+	overlay.Pix[0] = 1
+
+	composed := composeFrame(&stdgif.GIF{
+		Image: []*image.Paletted{base, overlay},
+		Delay: []int{10, 10},
+	}, 1)
+
+	if got := color.RGBAModel.Convert(composed.At(0, 0)).(color.RGBA); got.R != 255 || got.G != 0 {
+		t.Fatalf("pixel(0,0) = %+v, want red", got)
+	}
+	if got := color.RGBAModel.Convert(composed.At(1, 1)).(color.RGBA); got.G != 255 {
+		t.Fatalf("pixel(1,1) = %+v, want green", got)
+	}
+}

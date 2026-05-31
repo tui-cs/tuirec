@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	stdgif "image/gif"
 	stdpng "image/png"
 	"os"
@@ -104,11 +105,56 @@ func Render(ctx context.Context, castPath, outputPath string, config gif.Config,
 	}
 	defer outFile.Close()
 
-	if err := stdpng.Encode(outFile, decoded.Image[frameIndex]); err != nil {
+	if err := stdpng.Encode(outFile, composeFrame(decoded, frameIndex)); err != nil {
 		return fmt.Errorf("encode png: %w", err)
 	}
 
 	return nil
+}
+
+func composeFrame(decoded *stdgif.GIF, frameIndex int) image.Image {
+	bounds := image.Rect(0, 0, decoded.Config.Width, decoded.Config.Height)
+	if bounds.Empty() {
+		bounds = decoded.Image[0].Bounds()
+	}
+
+	var background color.Color = color.Transparent
+	if palette, ok := decoded.Config.ColorModel.(color.Palette); ok {
+		if idx := int(decoded.BackgroundIndex); idx >= 0 && idx < len(palette) {
+			background = palette[idx]
+		}
+	}
+
+	canvas := image.NewRGBA(bounds)
+	var previous *image.RGBA
+	clearRect := func(rect image.Rectangle) {
+		draw.Draw(canvas, rect.Intersect(bounds), image.NewUniform(background), image.Point{}, draw.Src)
+	}
+
+	for i := 0; i <= frameIndex; i++ {
+		if i > 0 && i-1 < len(decoded.Disposal) {
+			prevFrame := decoded.Image[i-1].Bounds()
+			switch decoded.Disposal[i-1] {
+			case stdgif.DisposalBackground:
+				clearRect(prevFrame)
+			case stdgif.DisposalPrevious:
+				if previous != nil {
+					draw.Draw(canvas, bounds, previous, bounds.Min, draw.Src)
+				}
+			}
+		}
+
+		previous = nil
+		if i < len(decoded.Disposal) && decoded.Disposal[i] == stdgif.DisposalPrevious {
+			previous = image.NewRGBA(bounds)
+			draw.Draw(previous, bounds, canvas, bounds.Min, draw.Src)
+		}
+
+		frame := decoded.Image[i]
+		draw.Draw(canvas, frame.Bounds().Intersect(bounds), frame, frame.Bounds().Min, draw.Over)
+	}
+
+	return canvas
 }
 
 func (r Renderer) Render(ctx context.Context, castPath, outputPath string, config gif.Config) error {
