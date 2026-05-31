@@ -120,6 +120,17 @@ starts before copying its output and playing input. `--drain` keeps recording
 after the last keystroke so the final UI state is visible. For troubleshooting,
 `--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
 
+For snapshot automation, you can make captures machine-checkable:
+
+```sh
+tuirec snapshot \
+  --binary ./myapp \
+  --frame last \
+  --assert-contains "Settings" \
+  --assert-not-contains "Unhandled" \
+  --print-frame-text
+```
+
 ### Keyboard and Mouse Syntax
 
 Tokens are comma-separated. Each token is one of:
