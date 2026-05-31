@@ -52,3 +52,47 @@ func TestExtractFrameTextDefaultsSizeWhenHeaderMissing(t *testing.T) {
 		t.Fatalf("ExtractFrameText = %q, want %q", got, "x")
 	}
 }
+
+func TestExtractFrameTextForSelectionByTime(t *testing.T) {
+	t.Parallel()
+
+	castPath := filepath.Join(t.TempDir(), "frame.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":20,"height":2}`,
+		`[0.1,"o","before"]`,
+		`[1.1,"o","\r\u001b[2Kafter"]`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	got, err := ExtractFrameTextForSelection(castPath, "at:500")
+	if err != nil {
+		t.Fatalf("ExtractFrameTextForSelection: %v", err)
+	}
+	if got != "before" {
+		t.Fatalf("ExtractFrameTextForSelection = %q, want %q", got, "before")
+	}
+}
+
+func TestExtractFrameTextForSelectionByIndex(t *testing.T) {
+	t.Parallel()
+
+	castPath := filepath.Join(t.TempDir(), "frame.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":20,"height":2}`,
+		`[0.1,"o","first"]`,
+		`[0.2,"o","\r\u001b[2Ksecond"]`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	got, err := ExtractFrameTextForSelection(castPath, "0")
+	if err != nil {
+		t.Fatalf("ExtractFrameTextForSelection: %v", err)
+	}
+	if got != "first" {
+		t.Fatalf("ExtractFrameTextForSelection = %q, want %q", got, "first")
+	}
+}

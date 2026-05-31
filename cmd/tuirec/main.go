@@ -728,7 +728,7 @@ func runSnapshot(ctx context.Context, options cliOptions, flags *recordFlags) er
 	}
 
 	if flags.printFrameText || len(flags.assertContains) > 0 || len(flags.assertNotContains) > 0 {
-		frameText, err := record.ExtractFrameText(result.CastPath)
+		frameText, err := record.ExtractFrameTextForSelection(result.CastPath, flags.frame)
 		if err != nil {
 			return fmt.Errorf("extract frame text: %w", err)
 		}

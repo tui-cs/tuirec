@@ -62,16 +62,56 @@ func normalizeSize(size Size) Size {
 }
 
 func normalizeEnv(env []string) []string {
-	if env == nil {
-		env = os.Environ()
-	} else {
-		env = append([]string{}, env...)
+	normalized := os.Environ()
+	if env != nil {
+		normalized = mergeEnv(normalized, env)
 	}
 
-	env = appendDefaultEnv(env, "TERM", "xterm-256color")
-	env = appendDefaultEnv(env, "COLORTERM", "truecolor")
+	normalized = appendDefaultEnv(normalized, "TERM", "xterm-256color")
+	normalized = appendDefaultEnv(normalized, "COLORTERM", "truecolor")
 
-	return env
+	return normalized
+}
+
+func mergeEnv(base []string, overrides []string) []string {
+	merged := append([]string{}, base...)
+	for _, override := range overrides {
+		key, ok := envKey(override)
+		if !ok {
+			merged = append(merged, override)
+			continue
+		}
+		merged = setEnv(merged, key, override)
+	}
+	return merged
+}
+
+func envKey(entry string) (string, bool) {
+	idx := strings.IndexByte(entry, '=')
+	if idx <= 0 {
+		return "", false
+	}
+	return entry[:idx], true
+}
+
+func setEnv(env []string, key string, value string) []string {
+	prefix := key + "="
+	filtered := env[:0]
+	replaced := false
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			if !replaced {
+				filtered = append(filtered, value)
+				replaced = true
+			}
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	if !replaced {
+		filtered = append(filtered, value)
+	}
+	return filtered
 }
 
 func appendDefaultEnv(env []string, key, value string) []string {

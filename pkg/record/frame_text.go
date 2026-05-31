@@ -16,6 +16,20 @@ const (
 	defaultFrameRows = 30
 )
 
+type frameSelectionMode int
+
+const (
+	frameSelectLast frameSelectionMode = iota
+	frameSelectIndex
+	frameSelectAt
+)
+
+type frameSelection struct {
+	mode      frameSelectionMode
+	index     int
+	atSeconds float64
+}
+
 type castHeader struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`
@@ -24,6 +38,17 @@ type castHeader struct {
 // ExtractFrameText replays cast output events into a terminal grid and returns
 // the final frame text with trailing whitespace trimmed per line.
 func ExtractFrameText(castPath string) (string, error) {
+	return ExtractFrameTextForSelection(castPath, "last")
+}
+
+// ExtractFrameTextForSelection replays cast output events into a terminal grid
+// and returns frame text for the selected frame (last, <index>, or at:<ms>).
+func ExtractFrameTextForSelection(castPath string, selection string) (string, error) {
+	frame, err := parseFrameSelection(selection)
+	if err != nil {
+		return "", err
+	}
+
 	data, err := os.ReadFile(castPath)
 	if err != nil {
 		return "", fmt.Errorf("read cast: %w", err)
@@ -36,6 +61,8 @@ func ExtractFrameText(castPath string) (string, error) {
 
 	cols, rows := parseCastSize(lines[0])
 	grid := newFrameGrid(cols, rows)
+	outputCount := 0
+	selected := frame.mode != frameSelectIndex
 	for _, line := range lines[1:] {
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
@@ -47,10 +74,52 @@ func ExtractFrameText(castPath string) (string, error) {
 		if !ok {
 			continue
 		}
+
+		if frame.mode == frameSelectAt && event.time > frame.atSeconds {
+			break
+		}
+		if frame.mode == frameSelectIndex && outputCount == frame.index {
+			grid.write(event.output)
+			selected = true
+			break
+		}
+
 		grid.write(event.output)
+		outputCount++
+	}
+	if frame.mode == frameSelectIndex && !selected {
+		return "", fmt.Errorf("frame index %d out of range (0-%d)", frame.index, outputCount-1)
 	}
 
 	return grid.text(), nil
+}
+
+func parseFrameSelection(value string) (frameSelection, error) {
+	if value == "" || value == "last" {
+		return frameSelection{mode: frameSelectLast}, nil
+	}
+
+	if strings.HasPrefix(value, "at:") {
+		raw := strings.TrimPrefix(value, "at:")
+		ms, err := strconv.Atoi(raw)
+		if err != nil || ms < 0 {
+			return frameSelection{}, fmt.Errorf("invalid frame selection %q: use last, <index>, or at:<ms>", value)
+		}
+		return frameSelection{
+			mode:      frameSelectAt,
+			atSeconds: float64(ms) / 1000,
+		}, nil
+	}
+
+	index, err := strconv.Atoi(value)
+	if err != nil || index < 0 {
+		return frameSelection{}, fmt.Errorf("invalid frame selection %q: use last, <index>, or at:<ms>", value)
+	}
+
+	return frameSelection{
+		mode:  frameSelectIndex,
+		index: index,
+	}, nil
 }
 
 func parseCastSize(line []byte) (int, int) {

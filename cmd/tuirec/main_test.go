@@ -857,6 +857,39 @@ func TestSnapshotCommandAssertContainsFailure(t *testing.T) {
 	}
 }
 
+func TestSnapshotCommandAssertionsUseSelectedFrame(t *testing.T) {
+	t.Parallel()
+
+	stderr := &bytes.Buffer{}
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--frame", "at:500",
+		"--assert-contains", "before",
+		"--assert-not-contains", "after",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: stderr,
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			data := strings.Join([]string{
+				`{"version":2,"width":20,"height":2}`,
+				`[0.1,"o","before"]`,
+				`[1.1,"o","\r\u001b[2Kafter"]`,
+			}, "\n") + "\n"
+			if err := os.WriteFile(config.CastOutput, []byte(data), 0o600); err != nil {
+				t.Fatalf("write cast: %v", err)
+			}
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d; stderr=%s", code, exitSuccess, stderr.String())
+	}
+}
+
 func TestSnapshotHelpSnapshot(t *testing.T) {
 	t.Parallel()
 
