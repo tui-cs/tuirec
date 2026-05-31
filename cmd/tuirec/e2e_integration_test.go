@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gui-cs/tuirec/pkg/gif"
+	pngrenderer "github.com/gui-cs/tuirec/pkg/png"
 )
 
 func TestRecordCommandEndToEndGIF(t *testing.T) {
@@ -58,6 +59,57 @@ func TestRecordCommandEndToEndGIF(t *testing.T) {
 
 	if validation.Frames < 2 {
 		t.Fatalf("Frames = %d, want >= 2", validation.Frames)
+	}
+
+	gotStdout := stdout.String()
+	if !strings.Contains(gotStdout, "Wrote "+output) || !strings.Contains(gotStdout, "Wrote "+castOutput) {
+		t.Fatalf("stdout = %q, want output and cast paths", gotStdout)
+	}
+}
+
+func TestSnapshotCommandEndToEndPNG(t *testing.T) {
+	repo := repoRoot(t)
+	if !aggAvailable(repo) {
+		t.Skip("agg not installed")
+	}
+
+	tuirec := buildtuirec(t, repo)
+	testapp := buildTestapp(t, repo)
+	output := filepath.Join(t.TempDir(), "cli-demo.png")
+	castOutput := filepath.Join(t.TempDir(), "cli-demo.cast")
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, tuirec,
+		"snapshot",
+		"--binary", testapp,
+		"--keystrokes", "wait:1000,ArrowRight,ArrowDown,`Hi`,wait:500,Ctrl+Q",
+		"--frame", "last",
+		"--output", output,
+		"--cast-output", castOutput,
+		"--cols", "80",
+		"--rows", "24",
+	)
+	cmd.Dir = repo
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("tuirec snapshot: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
+
+	if _, err := os.Stat(castOutput); err != nil {
+		t.Fatalf("stat cast output: %v", err)
+	}
+
+	validation, err := pngrenderer.Validate(output)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if validation.PixelVariance == 0 {
+		t.Fatal("PixelVariance = 0, want non-zero")
 	}
 
 	gotStdout := stdout.String()

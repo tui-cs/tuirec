@@ -18,3 +18,5 @@ coverage.*
 # Root-level demo artifacts. Test fixtures under package testdata stay tracked.
 /*.cast
 /*.gif
+/*.png
+/test-*.txt

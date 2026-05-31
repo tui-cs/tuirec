@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gui-cs/tuirec/pkg/gif"
+	pngrenderer "github.com/gui-cs/tuirec/pkg/png"
 	"github.com/gui-cs/tuirec/pkg/record"
 )
 
@@ -471,7 +472,7 @@ func TestOpenCLICommandPrintsDocument(t *testing.T) {
 	for _, command := range doc.Command.Commands {
 		subcommands[command.Name] = true
 	}
-	for _, expected := range []string{"record", "agent-guide", "opencli"} {
+	for _, expected := range []string{"record", "snapshot", "agent-guide", "opencli"} {
 		if !subcommands[expected] {
 			t.Fatalf("missing command %q in opencli output: %s", expected, stdout.String())
 		}
@@ -701,5 +702,134 @@ func TestRecordCommandAutoDownloadAgg(t *testing.T) {
 	// With output="" (cast-only mode), agg is not needed.
 	if code != exitSuccess {
 		t.Fatalf("execute code = %d, want %d; stderr: %s", code, exitSuccess, stderr.String())
+	}
+}
+
+func TestSnapshotCommandParsesFlags(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	stdout := &bytes.Buffer{}
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--args", "one,two",
+		"--output", "demo.png",
+		"--cast-output", "demo.cast",
+		"--keystrokes", "wait:10,Ctrl+Q",
+		"--frame", "at:1500",
+		"--keystroke-delay", "25",
+		"--verbosity", "high",
+	}, cliOptions{
+		stdout: stdout,
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return filepath.Join("resolved", path), nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	if got.Binary != filepath.Join("resolved", "demo-app") {
+		t.Fatalf("Binary = %q", got.Binary)
+	}
+	if got.GIF.AggPath != filepath.Join("resolved", "agg") {
+		t.Fatalf("AggPath = %q", got.GIF.AggPath)
+	}
+	if got.Output != "demo.png" || got.CastOutput != "demo.cast" {
+		t.Fatalf("outputs = %q %q", got.Output, got.CastOutput)
+	}
+	if _, ok := got.Renderer.(pngrenderer.Renderer); !ok {
+		t.Fatalf("Renderer = %T, want png.Renderer", got.Renderer)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "Wrote demo.png") || !strings.Contains(output, "Wrote demo.cast") {
+		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestSnapshotHelpSnapshot(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	code := execute([]string{"snapshot", "--help"}, cliOptions{
+		stdout: stdout,
+		stderr: &bytes.Buffer{},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	help := stdout.String()
+	for _, want := range []string{
+		"Capture a still PNG snapshot of a terminal app",
+		"--frame string",
+		"--output string",
+		"--name string",
+	} {
+		if !strings.Contains(help, want) {
+			t.Fatalf("help missing %q:\n%s", want, help)
+		}
+	}
+}
+
+func TestSnapshotCommandRejectsInvalidFrame(t *testing.T) {
+	t.Parallel()
+
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--frame", "bad",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitUsage {
+		t.Fatalf("execute code = %d, want %d", code, exitUsage)
+	}
+}
+
+func TestSnapshotCommandNameFlag(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	code := execute([]string{
+		"snapshot",
+		"--binary", "demo-app",
+		"--name", "my-snapshot",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look: func(path string) (string, error) {
+			return path, nil
+		},
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+
+	wantOutput := filepath.Join("artifacts", "my-snapshot.png")
+	wantCast := filepath.Join("artifacts", "my-snapshot.cast")
+	if got.Output != wantOutput {
+		t.Fatalf("Output = %q, want %q", got.Output, wantOutput)
+	}
+	if got.CastOutput != wantCast {
+		t.Fatalf("CastOutput = %q, want %q", got.CastOutput, wantCast)
 	}
 }

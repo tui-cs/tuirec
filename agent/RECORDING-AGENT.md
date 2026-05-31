@@ -2,7 +2,8 @@
 
 This document teaches an AI agent how to compose tuirec keystroke scripts for
 recording any terminal application. Any AI system (Claude, Copilot, Codex, etc.)
-can use this as context to drive `tuirec record` directly.
+can use this as context to drive `tuirec record` (GIF) or `tuirec snapshot`
+(still PNG) directly.
 
 ## Quick start
 
@@ -423,7 +424,7 @@ Notes:
 
 ## Invoking the recording
 
-### Direct `tuirec record` (recommended)
+### Direct `tuirec record` (GIF) / `tuirec snapshot` (PNG)
 
 ```bash
 tuirec record \
@@ -437,9 +438,10 @@ tuirec record \
     --max-duration 45
 ```
 
-The `--name` flag sets `--output artifacts/<name>.gif` and `--cast-output
-artifacts/<name>.cast` automatically. You can override either with explicit
-flags. `tuirec` will auto-download `agg` if it's not on PATH.
+For `record`, `--name` sets `--output artifacts/<name>.gif`. For `snapshot`,
+`--name` sets `--output artifacts/<name>.png`. Both set
+`--cast-output artifacts/<name>.cast` automatically. You can override either
+with explicit flags. `tuirec` will auto-download `agg` if it's not on PATH.
 
 **If `tuirec` is not on PATH:** after `go install`, the binary is at
 `$(go env GOPATH)/bin/tuirec[.exe]`. Add that to PATH or invoke with the full
@@ -465,12 +467,13 @@ path.
 |---|---|---|---|
 | `--binary` | **Yes** | — | Path to the target executable |
 | `--keystrokes` | **Yes** | — | The tuirec keystroke script |
-| `--name` | No | — | Short ID for filenames (`artifacts/<name>.gif`) |
+| `--name` | No | — | Short ID for filenames (`record`: `.gif`, `snapshot`: `.png`) |
 | `--title` | No | — | Title in cast metadata |
 | `--show-command` | No | — | Synthetic shell prompt pre-roll |
 | `--startup-delay` | No | 0 | Ms to wait after process start before output capture |
 | `--input-delay` | No | 0 | Ms pause before scripted keys begin |
-| `--output` | No | `recording.gif` | GIF path (overrides `--name`) |
+| `--output` | No | `recording.gif` / `snapshot.png` | Output path (overrides `--name`) |
+| `--frame` | No | `last` | Snapshot frame selector for `snapshot`: `last`, `<index>`, or `at:<ms>` |
 | `--cast-output` | No | — | Cast path (overrides `--name`) |
 | `--cols` | No | 120 | Terminal columns |
 | `--rows` | No | 30 | Terminal rows |
@@ -481,8 +484,8 @@ path.
 | `--args` | No | — | Argument to pass to the binary (repeatable: one `--args` per token) |
 | `--agg-path` | No | auto | Path to agg (auto-downloaded if not found) |
 | `--trim` | No | true | Rebase cast to first visible output and trim alternate-screen-exit postroll |
-| `--open` | No | false | Open the GIF in the default viewer after recording |
-| `--copy` | No | false | Copy the GIF file path to the system clipboard |
+| `--open` | No | false | Open the output image/GIF in the default viewer after capture |
+| `--copy` | No | false | Copy the output file path to the system clipboard |
 
 ---
 
