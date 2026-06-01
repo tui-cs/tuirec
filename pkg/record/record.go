@@ -496,7 +496,7 @@ func trimCast(path string) error {
 		}
 
 		if !started {
-			if !hasVisibleOutput(event.output) {
+			if !hasTrimStartOutput(event.output) {
 				if event.output != "" {
 					setup = append(setup, event)
 				}
@@ -622,6 +622,59 @@ func hasVisibleOutput(output string) bool {
 			return true
 		}
 		i += size
+	}
+
+	return false
+}
+
+func hasTrimStartOutput(output string) bool {
+	return hasVisibleOutput(output) || hasSixelOutput(output)
+}
+
+func hasSixelOutput(output string) bool {
+	for i := 0; i < len(output); {
+		if output[i] == '\x1b' {
+			if i+1 < len(output) && output[i+1] == 'P' {
+				if isSixelDCS(output, i+2) {
+					return true
+				}
+				i = skipStringEscape(output, i+2)
+				continue
+			}
+			i = skipEscape(output, i)
+			continue
+		}
+		if output[i] == '\x90' {
+			if isSixelDCS(output, i+1) {
+				return true
+			}
+			i = skipStringEscape(output, i+1)
+			continue
+		}
+
+		_, size := utf8.DecodeRuneInString(output[i:])
+		i += size
+	}
+
+	return false
+}
+
+func isSixelDCS(output string, i int) bool {
+	for i < len(output) {
+		b := output[i]
+		if b >= 0x40 && b <= 0x7e {
+			return b == 'q'
+		}
+		// Parameter bytes (0x30-0x3f) may precede the final byte, but any
+		// intermediate byte (0x20-0x2f, e.g. the '$' in a DECRQSS query)
+		// means this is not a sixel sequence even if it ends in 'q'.
+		if b >= 0x20 && b <= 0x2f {
+			return false
+		}
+		if b == '\x1b' || b == '\a' {
+			return false
+		}
+		i++
 	}
 
 	return false
