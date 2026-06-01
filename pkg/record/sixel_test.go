@@ -201,6 +201,39 @@ func TestHasVisibleOutputIgnoresDCS(t *testing.T) {
 	}
 }
 
+// TestHasSixelOutput verifies that only true sixel DCS sequences (no
+// intermediate bytes, final byte 'q') are recognized, and that non-sixel
+// DCS sequences whose final byte happens to be 'q' (such as a DECRQSS query
+// ESC P $ q ... ESC \) are rejected.
+func TestHasSixelOutput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"sixel ESC P q", "\x1bPq#1~~-\x1b\\", true},
+		{"sixel with params", "\x1bP0;0;0q#1~~-\x1b\\", true},
+		{"sixel C1 DCS", "\x90q#1~~-\x1b\\", true},
+		{"decrqss query", "\x1bP$q\"p\x1b\\", false},
+		{"decrqss C1", "\x90$q\"p\x1b\\", false},
+		{"dcs non-q final", "\x1bP+q\x1b\\", false},
+		{"no dcs", "Hello", false},
+		{"csi only", "\x1b[2J", false},
+		{"empty dcs", "\x1bP\x1b\\", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasSixelOutput(tt.input)
+			if got != tt.expect {
+				t.Errorf("hasSixelOutput(%q) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
 // --- fake sessions for sixel tests ---
 
 // sixelFakeSession emits canned output then EOF.

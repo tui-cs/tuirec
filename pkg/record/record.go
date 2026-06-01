@@ -665,6 +665,12 @@ func isSixelDCS(output string, i int) bool {
 		if b >= 0x40 && b <= 0x7e {
 			return b == 'q'
 		}
+		// Parameter bytes (0x30-0x3f) may precede the final byte, but any
+		// intermediate byte (0x20-0x2f, e.g. the '$' in a DECRQSS query)
+		// means this is not a sixel sequence even if it ends in 'q'.
+		if b >= 0x20 && b <= 0x2f {
+			return false
+		}
 		if b == '\x1b' || b == '\a' {
 			return false
 		}
