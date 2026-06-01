@@ -1,11 +1,31 @@
+version: "2"
 run:
-  timeout: 5m
   tests: true
-
 linters:
-  enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+  settings:
+    staticcheck:
+      # golangci-lint v2 merged the former stylecheck (ST*) and quickfix
+      # (QF*) linters into staticcheck. Neither was enabled under the v1
+      # config, so keep them disabled to make the v2 upgrade behavior-neutral.
+      checks:
+        - all
+        - -ST1*
+        - -QF1*
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
