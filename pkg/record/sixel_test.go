@@ -144,6 +144,37 @@ func TestTrimCastPreservesSixelDCS(t *testing.T) {
 	}
 }
 
+// TestTrimCastPreservesSixelOnlyDCS verifies that sixel output can start a
+// trimmed cast even when there is no surrounding visible text.
+func TestTrimCastPreservesSixelOnlyDCS(t *testing.T) {
+	t.Parallel()
+
+	castPath := filepath.Join(t.TempDir(), "sixel-only-trim.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":80,"height":24}`,
+		`[0,"o","\u001b[?1049h"]`,
+		`[0.2,"o","\u001bPq#0;2;0;0;0#1;2;100;100;100#1~~-#0~~-\u001b\\"]`,
+		`[0.8,"o","\u001b[?1049l"]`,
+		"",
+	}, "\n")
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	if err := trimCast(castPath); err != nil {
+		t.Fatalf("trimCast: %v", err)
+	}
+
+	trimmed, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+
+	if !strings.Contains(string(trimmed), `\u001bPq`) {
+		t.Fatalf("trimmed cast lost sixel-only DCS:\n%s", trimmed)
+	}
+}
+
 // TestHasVisibleOutputIgnoresDCS verifies that a DCS payload (like sixel) is
 // not treated as visible output (it's a device control sequence, not text).
 func TestHasVisibleOutputIgnoresDCS(t *testing.T) {
