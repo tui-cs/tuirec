@@ -15,9 +15,8 @@ func openFile(path string) error {
 }
 
 func copyToClipboard(text string) error {
-	cmd := exec.Command("cmd", "/c", "echo|set /p="+text+"|clip")
 	// PowerShell is more reliable for arbitrary text.
-	cmd = exec.Command("powershell", "-NoProfile", "-Command",
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
 		"Set-Clipboard -Value '"+strings.ReplaceAll(text, "'", "''")+"'")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Run()
