@@ -158,6 +158,10 @@ func Run(parent context.Context, config Config) (Result, error) {
 		ptyReader = newKittyInterceptor(session, session)
 	}
 
+	// Always intercept DA1/DA2 queries to advertise sixel capability. This
+	// allows recorded apps to detect sixel support and emit DCS payloads.
+	ptyReader = newSixelInterceptor(ptyReader, session)
+
 	// Wrap the recorder with a synchronized writer when pointer injection is
 	// enabled so that both copyPTY and pointer writes serialize correctly.
 	var castWriter io.Writer = castRecorder
@@ -633,6 +637,10 @@ func skipEscape(s string, i int) int {
 	case '[':
 		return skipCSI(s, i+1)
 	case ']':
+		return skipStringEscape(s, i+1)
+	case 'P', '^', '_':
+		// DCS (\x1bP), PM (\x1b^), APC (\x1b_) are all string sequences
+		// terminated by ST (\x1b\\ or \x07).
 		return skipStringEscape(s, i+1)
 	default:
 		_, size := utf8.DecodeRuneInString(s[i:])

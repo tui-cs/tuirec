@@ -311,6 +311,10 @@ func (g *frameGrid) handleEscape(s string, i int) int {
 		return g.handleCSI(s, i+1)
 	case ']':
 		return skipStringEscape(s, i+1)
+	case 'P', '^', '_':
+		// DCS (\x1bP), PM (\x1b^), APC (\x1b_) are all string sequences
+		// terminated by ST (\x1b\\ or \x07).
+		return skipStringEscape(s, i+1)
 	default:
 		_, size := utf8.DecodeRuneInString(s[i:])
 		return i + size
