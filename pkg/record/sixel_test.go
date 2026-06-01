@@ -209,8 +209,8 @@ func (s *sixelFakeSession) Close() error {
 	return nil
 }
 
-func (s *sixelFakeSession) Pid() int                                    { return 1 }
-func (s *sixelFakeSession) Resize(pty.Size) error                       { return nil }
+func (s *sixelFakeSession) Pid() int              { return 1 }
+func (s *sixelFakeSession) Resize(pty.Size) error { return nil }
 func (s *sixelFakeSession) Wait(ctx context.Context) (pty.ExitStatus, error) {
 	select {
 	case <-s.closed:
@@ -222,11 +222,11 @@ func (s *sixelFakeSession) Wait(ctx context.Context) (pty.ExitStatus, error) {
 
 // da1FakeSession emits a DA1 query then waits for the response.
 type da1FakeSession struct {
-	mu       sync.Mutex
-	phase    int // 0=emit DA1 query, 1=emit EOF
-	input    bytes.Buffer
-	closed   chan struct{}
-	once     sync.Once
+	mu     sync.Mutex
+	phase  int // 0=emit DA1 query, 1=emit EOF
+	input  bytes.Buffer
+	closed chan struct{}
+	once   sync.Once
 }
 
 func (s *da1FakeSession) Read(p []byte) (int, error) {
