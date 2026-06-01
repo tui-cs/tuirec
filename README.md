@@ -33,6 +33,8 @@ Homebrew and Scoop manifests are planned after the first release automation pass
 
 **Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.8.1` renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.8.1/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.8.1\` on Windows). You can also pass `--agg-path` explicitly.
 
+**Sixel limitation:** tuirec advertises sixel support to recorded apps and preserves sixel DCS payloads in the `.cast` file. GIF rendering still depends on `agg`, which does not currently render sixel graphics, so sixel images are captured in casts but are not visible in generated GIF output.
+
 ## Build and Run Locally on Windows
 
 The CLI shell, cross-platform PTY, asciinema recorder, keystroke player, GIF renderer, recording pipeline, and `record` command are in place.
@@ -117,7 +119,10 @@ GIF before the target app starts. `--trim` (enabled by default) rebases
 timestamps to the first visible output and removes post-alt-screen-exit noise
 while preserving setup sequences. `--startup-delay` waits after the target
 starts before copying its output and playing input. `--drain` keeps recording
-after the last keystroke so the final UI state is visible. For troubleshooting,
+after the last keystroke so the final UI state is visible. Sixel-capable apps
+can emit sixel graphics because tuirec answers terminal capability queries, and
+those sixel payloads are preserved in `.cast` files; generated GIFs do not show
+the sixel images until `agg` supports sixel rendering. For troubleshooting,
 `--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
 
 For snapshot automation, you can make captures machine-checkable:

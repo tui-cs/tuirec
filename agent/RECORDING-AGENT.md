@@ -21,6 +21,12 @@ can use this as context to drive `tuirec record` (GIF) or `tuirec snapshot`
 > **Note:** `tuirec record` auto-downloads `agg` if not found on PATH or in the
 > cache (`~/.cache/tuirec/agg-v1.8.1/`). No separate setup needed.
 >
+> **Sixel limitation:** tuirec advertises sixel support to recorded apps and
+> preserves sixel DCS payloads in the `.cast` file, but generated GIFs use
+> `agg`, which does not currently render sixel graphics. If a sixel image is
+> missing from a GIF, inspect the `.cast` file before assuming the app failed to
+> emit it.
+>
 > **From source:** If `tuirec` is not on PATH, build it first with
 > `go build -o tuirec.exe ./cmd/tuirec` (Windows) or
 > `go build -o tuirec ./cmd/tuirec` (Unix), then invoke via `./tuirec`.
@@ -106,6 +112,10 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   the first visible output starts at t=0 and removes post-alt-screen-exit
   noise. Setup sequences (e.g. alt-screen enter) are preserved. Disable with
   `--trim=false` if you need the raw timing.
+- **Sixel graphics in GIFs** — tuirec records sixel-capable apps by answering
+  terminal capability queries and preserving sixel DCS payloads in the `.cast`
+  file. `agg` does not currently render those payloads into GIFs, so the cast
+  can contain sixel data even when the GIF shows only surrounding text.
 - **Verifying recording content** — after recording, check the `.cast` file for
   expected output strings (e.g. `grep "1966-09-10" demo.cast` or `tail` the
   cast to see the final printed output). Post-exit terminal noise (stderr from
