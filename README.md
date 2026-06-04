@@ -33,7 +33,7 @@ Homebrew and Scoop manifests are planned after the first release automation pass
 
 **Prerequisite for source builds:** [agg](https://github.com/asciinema/agg) `v1.8.1` renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.8.1/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.8.1\` on Windows). You can also pass `--agg-path` explicitly.
 
-**Sixel limitation:** tuirec advertises sixel support to recorded apps and preserves sixel DCS payloads in the `.cast` file. GIF rendering still depends on `agg`, which does not currently render sixel graphics, so sixel images are captured in casts but are not visible in generated GIF output.
+**Sixel graphics:** tuirec answers the queries a sixel-capable app needs — DA1 (advertises sixel) and the `CSI 14/16/18 t` window/cell-size reports, so the app detects sixel, sizes its raster to match `agg`'s cells, and lays out its UI — and preserves the sixel DCS in the `.cast`. With a sixel-aware `agg` the images render in the GIF. Caveats: sixel capture works on **Linux/macOS only** (Windows ConPTY strips sixel DCS from the output stream), and full-screen / alternate-screen apps need `--trim=false` (otherwise trim can discard the recording).
 
 ## Build and Run Locally on Windows
 
@@ -120,10 +120,12 @@ timestamps to the first visible output and removes post-alt-screen-exit noise
 while preserving setup sequences. `--startup-delay` waits after the target
 starts before copying its output and playing input. `--drain` keeps recording
 after the last keystroke so the final UI state is visible. Sixel-capable apps
-can emit sixel graphics because tuirec answers terminal capability queries, and
-those sixel payloads are preserved in `.cast` files; generated GIFs do not show
-the sixel images until `agg` supports sixel rendering. For troubleshooting,
-`--verbosity high` logs the command pre-roll, key tokens, and pacing to stderr.
+can emit sixel graphics because tuirec answers terminal capability and geometry
+queries (DA1 plus `CSI 14/16/18 t`); those sixel payloads are preserved in
+`.cast` files and render in the GIF with a sixel-aware `agg` (Linux/macOS only —
+ConPTY strips sixel on Windows; use `--trim=false` for alternate-screen apps).
+For troubleshooting, `--verbosity high` logs the command pre-roll, key tokens,
+and pacing to stderr.
 
 For snapshot automation, you can make captures machine-checkable:
 

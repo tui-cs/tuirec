@@ -18,6 +18,71 @@ import (
 // A minimal sixel DCS payload: ESC P q <data> ESC \
 const sixelPayload = "\x1bPq#0;2;0;0;0#1;2;100;100;100#1~~-#0~~-\x1b\\"
 
+// TestDA1ResponseAdvertisesSixelAsDelimitedToken verifies that the DA1 response
+// exposes the sixel attribute (4) as a standalone ';'-delimited token. Apps
+// commonly detect sixel support with response.Split(";").Contains("4") — for
+// example Terminal.Gui's SixelSupportDetector — which fails if 4 is glued to the
+// terminator (yielding the token "4c"). Real terminals never place the sixel
+// attribute immediately before the final 'c', so tuirec must not either.
+func TestDA1ResponseAdvertisesSixelAsDelimitedToken(t *testing.T) {
+	t.Parallel()
+
+	for _, tok := range strings.Split(string(da1Response), ";") {
+		if tok == "4" {
+			return
+		}
+	}
+
+	t.Fatalf("DA1 response %q exposes no standalone \"4\" token; tokens=%v",
+		da1Response, strings.Split(string(da1Response), ";"))
+}
+
+// TestInterceptorAnswersCellSizeQuery verifies that a cell-size query (CSI 16 t)
+// is answered with a pixel cell-size report (CSI 6 ; h ; w t). Without it, apps
+// that advertise sixel fall back to 1 pixel per cell and emit a degenerate
+// image.
+func TestInterceptorAnswersCellSizeQuery(t *testing.T) {
+	t.Parallel()
+
+	var ptyInput bytes.Buffer
+	// Cell 8x18 px (e.g. font size 14, line height 1.3 -> 8x18).
+	si := newSixelInterceptor(strings.NewReader("\x1b[16t"), &ptyInput, 120, 35, 8, 18)
+
+	buf := make([]byte, 64)
+	for {
+		if _, err := si.Read(buf); err != nil {
+			break
+		}
+	}
+
+	// CSI 6 ; heightPx ; widthPx t — the reported cell size agg will render at.
+	if got := ptyInput.String(); got != "\x1b[6;18;8t" {
+		t.Fatalf("expected cell-size report CSI 6;18;8t, got %q", got)
+	}
+}
+
+// TestInterceptorAnswersTextAreaQuery verifies that a text-area size query
+// (CSI 18 t) is answered with the recording's character dimensions (CSI 8 ;
+// rows ; cols t). Terminal.Gui's ANSI driver needs this to lay out its UI;
+// without it the screen stays unsized and nothing is drawn.
+func TestInterceptorAnswersTextAreaQuery(t *testing.T) {
+	t.Parallel()
+
+	var ptyInput bytes.Buffer
+	si := newSixelInterceptor(strings.NewReader("\x1b[18t"), &ptyInput, 120, 35, 8, 18)
+
+	buf := make([]byte, 64)
+	for {
+		if _, err := si.Read(buf); err != nil {
+			break
+		}
+	}
+
+	if got := ptyInput.String(); got != "\x1b[8;35;120t" {
+		t.Fatalf("expected text-area report CSI 8;35;120t, got %q", got)
+	}
+}
+
 // TestPipelineRecordsSixelOutput verifies that sixel DCS sequences emitted by
 // an app are preserved in the cast file. This tests the data path only — the
 // fake session unconditionally emits sixel without waiting for a DA1 response.

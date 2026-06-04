@@ -158,9 +158,14 @@ func Run(parent context.Context, config Config) (Result, error) {
 		ptyReader = newKittyInterceptor(session, session)
 	}
 
-	// Always intercept DA1/DA2 queries to advertise sixel capability. This
-	// allows recorded apps to detect sixel support and emit DCS payloads.
-	ptyReader = newSixelInterceptor(ptyReader, session)
+	// Always intercept DA1/DA2 and geometry queries to advertise sixel
+	// capability and report the screen/cell size. This lets recorded apps
+	// detect sixel support, lay out their UI, and emit DCS payloads. The cell
+	// size mirrors how agg renders (row = fontSize*lineHeight, column ~=
+	// 0.6*fontSize) so the app's sixel raster matches its on-screen cells.
+	cellW := int(float64(config.GIF.FontSize)*0.6 + 0.5)
+	cellH := int(float64(config.GIF.FontSize)*config.GIF.LineHeight + 0.5)
+	ptyReader = newSixelInterceptor(ptyReader, session, config.Size.Cols, config.Size.Rows, cellW, cellH)
 
 	// Wrap the recorder with a synchronized writer when pointer injection is
 	// enabled so that both copyPTY and pointer writes serialize correctly.
