@@ -108,7 +108,7 @@ func (s *unixSession) Pid() int {
 }
 
 func (s *unixSession) Resize(size Size) error {
-	size = normalizeSize(size)
+	size = NormalizeSize(size)
 	err := creackpty.Setsize(s.file, &creackpty.Winsize{
 		Rows: uint16(size.Rows),
 		Cols: uint16(size.Cols),

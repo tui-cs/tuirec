@@ -43,13 +43,16 @@ type Session interface {
 
 // Start spawns binary with args attached to a pseudoterminal.
 func Start(binary string, args []string, size Size, options Options) (Session, error) {
-	size = normalizeSize(size)
+	size = NormalizeSize(size)
 	options.Env = normalizeEnv(options.Env)
 
 	return start(binary, args, size, options)
 }
 
-func normalizeSize(size Size) Size {
+// NormalizeSize replaces non-positive dimensions with the defaults Start
+// applies, so callers (e.g. the sixel geometry reports) can mirror the size the
+// PTY will actually use.
+func NormalizeSize(size Size) Size {
 	if size.Cols <= 0 {
 		size.Cols = defaultCols
 	}

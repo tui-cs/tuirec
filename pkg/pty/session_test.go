@@ -8,7 +8,7 @@ import (
 func TestNormalizeSizeUsesDefaults(t *testing.T) {
 	t.Parallel()
 
-	got := normalizeSize(Size{})
+	got := NormalizeSize(Size{})
 	if got.Cols != defaultCols {
 		t.Fatalf("Cols = %d, want %d", got.Cols, defaultCols)
 	}
@@ -21,7 +21,7 @@ func TestNormalizeSizeUsesDefaults(t *testing.T) {
 func TestNormalizeSizePreservesPositiveValues(t *testing.T) {
 	t.Parallel()
 
-	got := normalizeSize(Size{Cols: 80, Rows: 24})
+	got := NormalizeSize(Size{Cols: 80, Rows: 24})
 	if got.Cols != 80 {
 		t.Fatalf("Cols = %d, want 80", got.Cols)
 	}

@@ -21,11 +21,14 @@ can use this as context to drive `tuirec record` (GIF) or `tuirec snapshot`
 > **Note:** `tuirec record` auto-downloads `agg` if not found on PATH or in the
 > cache (`~/.cache/tuirec/agg-v1.8.1/`). No separate setup needed.
 >
-> **Sixel limitation:** tuirec advertises sixel support to recorded apps and
-> preserves sixel DCS payloads in the `.cast` file, but generated GIFs use
-> `agg`, which does not currently render sixel graphics. If a sixel image is
-> missing from a GIF, inspect the `.cast` file before assuming the app failed to
-> emit it.
+> **Sixel graphics:** tuirec answers the terminal queries a sixel-capable app
+> needs — DA1 (advertises sixel) plus the window/cell-size reports
+> (`CSI 14/16/18 t`), so the app detects sixel, sizes its raster to match the
+> cells `agg` renders, and lays out its UI — and preserves the sixel DCS in the
+> `.cast`. With a sixel-aware `agg` the image appears in the GIF. Two caveats:
+> (1) **Linux/macOS only** — Windows ConPTY strips sixel DCS from the output
+> stream, so sixel cannot be captured there; (2) pass **`--trim=false`** for
+> full-screen / alternate-screen apps, or trim may discard the whole recording.
 >
 > **From source:** If `tuirec` is not on PATH, build it first with
 > `go build -o tuirec.exe ./cmd/tuirec` (Windows) or
@@ -112,10 +115,16 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   the first visible output starts at t=0 and removes post-alt-screen-exit
   noise. Setup sequences (e.g. alt-screen enter) are preserved. Disable with
   `--trim=false` if you need the raw timing.
-- **Sixel graphics in GIFs** — tuirec records sixel-capable apps by answering
-  terminal capability queries and preserving sixel DCS payloads in the `.cast`
-  file. `agg` does not currently render those payloads into GIFs, so the cast
-  can contain sixel data even when the GIF shows only surrounding text.
+- **Sixel graphics in GIFs** — tuirec answers DA1 (advertising sixel) and the
+  `CSI 14/16/18 t` window/cell-size queries so sixel-capable apps detect support,
+  size their raster to match `agg`'s cells, and lay out their UI; the sixel DCS is
+  preserved in the `.cast` and rendered by a sixel-aware `agg`. Caveats: **not on
+  Windows** (ConPTY strips sixel DCS — record on Linux/macOS), and pass
+  **`--trim=false`** for alternate-screen apps. To record a Terminal.Gui sixel
+  scenario (e.g. UICatalog's `Mandelbrot`), launch the scenario directly
+  (`--binary <UICatalog> --args Mandelbrot`), use `--trim=false`, quit with `Esc`
+  (Terminal.Gui v2's quit key, not `Ctrl+Q`), and confirm with
+  `grep -c "u001bP" demo.cast` that the cast holds sixel DCS payloads.
 - **Verifying recording content** — after recording, check the `.cast` file for
   expected output strings (e.g. `grep "1966-09-10" demo.cast` or `tail` the
   cast to see the final printed output). Post-exit terminal noise (stderr from

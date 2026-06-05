@@ -79,6 +79,21 @@ type Result struct {
 	GIFPath  string
 }
 
+// sixelGeometry returns the terminal and cell dimensions to report to sixel
+// queries. The size and font config are normalized with the same defaults
+// pty.Start and gif.Render apply, so a zero-valued Config still reports the
+// dimensions the PTY and agg actually use instead of zeros (which would break
+// app layout or yield a 0x0 raster). The cell size mirrors agg's rendering:
+// row = fontSize*lineHeight, column ~= 0.6*fontSize for a monospace font.
+func sixelGeometry(size pty.Size, gifConfig gif.Config) (cols, rows, cellW, cellH int) {
+	size = pty.NormalizeSize(size)
+	gifConfig = gif.NormalizeConfig(gifConfig)
+	cellW = int(float64(gifConfig.FontSize)*0.6 + 0.5)
+	cellH = int(float64(gifConfig.FontSize)*gifConfig.LineHeight + 0.5)
+
+	return size.Cols, size.Rows, cellW, cellH
+}
+
 type gifRenderer struct{}
 
 type contextWriter struct {
@@ -158,9 +173,11 @@ func Run(parent context.Context, config Config) (Result, error) {
 		ptyReader = newKittyInterceptor(session, session)
 	}
 
-	// Always intercept DA1/DA2 queries to advertise sixel capability. This
-	// allows recorded apps to detect sixel support and emit DCS payloads.
-	ptyReader = newSixelInterceptor(ptyReader, session)
+	// Always intercept DA1/DA2 and geometry queries to advertise sixel
+	// capability and report the screen/cell size. This lets recorded apps
+	// detect sixel support, lay out their UI, and emit DCS payloads.
+	cols, rows, cellW, cellH := sixelGeometry(config.Size, config.GIF)
+	ptyReader = newSixelInterceptor(ptyReader, session, cols, rows, cellW, cellH)
 
 	// Wrap the recorder with a synchronized writer when pointer injection is
 	// enabled so that both copyPTY and pointer writes serialize correctly.
