@@ -17,7 +17,7 @@ type asset struct {
 }
 
 func main() {
-	version := flag.String("version", "v1.8.1", "agg release version")
+	version := flag.String("version", "v1.9.0-sixel", "agg release version")
 	outputDir := flag.String("output", filepath.Join("build", "agg"), "output directory")
 	flag.Parse()
 
@@ -28,14 +28,15 @@ func main() {
 }
 
 func downloadAssets(version, outputDir string) error {
-	baseURL := fmt.Sprintf("https://github.com/asciinema/agg/releases/download/%s", version)
+	// tig/agg is the sixel-capable fork pinned by pkg/gif.DefaultAggVersion.
+	baseURL := fmt.Sprintf("https://github.com/tig/agg/releases/download/%s", version)
 	assets := []asset{
 		{target: "darwin_amd64", name: "agg-x86_64-apple-darwin", output: "agg"},
 		{target: "darwin_arm64", name: "agg-aarch64-apple-darwin", output: "agg"},
 		{target: "linux_amd64", name: "agg-x86_64-unknown-linux-musl", output: "agg"},
 		{target: "linux_arm64", name: "agg-aarch64-unknown-linux-gnu", output: "agg"},
 		{target: "windows_amd64", name: "agg-x86_64-pc-windows-msvc.exe", output: "agg.exe"},
-		// Upstream agg v1.8.1 does not publish a native Windows ARM64 binary.
+		// The agg release does not publish a native Windows ARM64 binary.
 		// Windows ARM64 can run the x64 binary through OS emulation.
 		{target: "windows_arm64", name: "agg-x86_64-pc-windows-msvc.exe", output: "agg.exe"},
 	}

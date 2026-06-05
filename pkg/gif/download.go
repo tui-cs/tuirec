@@ -12,7 +12,12 @@ import (
 
 const (
 	// DefaultAggVersion is the agg release version downloaded when auto-fetching.
-	DefaultAggVersion = "v1.8.1"
+	// The fork (see aggReleaseRepo) ships sixel rendering; pinned here until that
+	// support lands in an upstream asciinema/agg release.
+	DefaultAggVersion = "v1.9.0-sixel"
+
+	// aggReleaseRepo is the GitHub owner/name the agg binary is fetched from.
+	aggReleaseRepo = "tig/agg"
 
 	aggCacheDirName = "tuirec"
 )
@@ -84,7 +89,7 @@ func downloadAggWith(client *http.Client) (string, error) {
 		return outputPath, nil
 	}
 
-	url := fmt.Sprintf("https://github.com/asciinema/agg/releases/download/%s/%s", DefaultAggVersion, assetName)
+	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", aggReleaseRepo, DefaultAggVersion, assetName)
 
 	if client.Timeout == 0 {
 		client = &http.Client{Timeout: 5 * time.Minute}

@@ -9,8 +9,8 @@ agg. No manual screen recording, no browser-based tools.
 ## Install
 
 Download a release archive from https://github.com/gui-cs/tuirec/releases
-(includes tuirec + agg). Or: `go install github.com/gui-cs/tuirec/cmd/tuirec@latest`
-and install agg separately (https://github.com/asciinema/agg).
+(includes tuirec + a sixel-capable agg). Or: `go install github.com/gui-cs/tuirec/cmd/tuirec@latest`
+and install agg separately (the sixel-capable fork: https://github.com/tig/agg).
 
 ## Quick start
 
