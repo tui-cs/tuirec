@@ -46,7 +46,7 @@ type Validation struct {
 
 // Render converts an asciinema cast file to an animated GIF with agg.
 func Render(ctx context.Context, castPath, outputPath string, config Config) error {
-	config = normalizeConfig(config)
+	config = NormalizeConfig(config)
 
 	args := renderArgs(castPath, outputPath, config)
 	var stderr bytes.Buffer
@@ -112,7 +112,10 @@ func Validate(path string) (Validation, error) {
 	}, nil
 }
 
-func normalizeConfig(config Config) Config {
+// NormalizeConfig fills unset fields with the defaults Render applies, so
+// callers (e.g. the sixel cell-size reports) can mirror the font metrics agg
+// will render with.
+func NormalizeConfig(config Config) Config {
 	if config.AggPath == "" {
 		config.AggPath = defaultAggPath
 	}

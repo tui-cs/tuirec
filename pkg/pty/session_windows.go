@@ -66,7 +66,7 @@ func (s *windowsSession) Pid() int {
 }
 
 func (s *windowsSession) Resize(size Size) error {
-	size = normalizeSize(size)
+	size = NormalizeSize(size)
 	if err := s.pty.Resize(size.Cols, size.Rows); err != nil {
 		return fmt.Errorf("resize conpty: %w", err)
 	}

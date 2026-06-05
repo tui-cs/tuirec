@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gui-cs/tuirec/pkg/gif"
 	"github.com/gui-cs/tuirec/pkg/pty"
 	"github.com/gui-cs/tuirec/pkg/recorder"
 )
@@ -58,6 +59,25 @@ func TestInterceptorAnswersCellSizeQuery(t *testing.T) {
 	// CSI 6 ; heightPx ; widthPx t — the reported cell size agg will render at.
 	if got := ptyInput.String(); got != "\x1b[6;18;8t" {
 		t.Fatalf("expected cell-size report CSI 6;18;8t, got %q", got)
+	}
+}
+
+// TestSixelGeometryNormalizesZeroConfig verifies that a zero-valued Config —
+// valid because pty.Start and gif.Render fill in defaults later — still yields
+// the real screen and cell size for the sixel geometry reports, rather than
+// zero rows/cols/cell size that would break layout or produce a 0x0 raster.
+func TestSixelGeometryNormalizesZeroConfig(t *testing.T) {
+	t.Parallel()
+
+	cols, rows, cellW, cellH := sixelGeometry(pty.Size{}, gif.Config{})
+
+	// pty defaults: 120x30; gif defaults: font 14, line height 1.3 -> 8x18 px.
+	if cols != 120 || rows != 30 {
+		t.Fatalf("size = %dx%d, want 120x30", cols, rows)
+	}
+
+	if cellW != 8 || cellH != 18 {
+		t.Fatalf("cell = %dx%d px, want 8x18", cellW, cellH)
 	}
 }
 

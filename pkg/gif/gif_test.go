@@ -37,7 +37,7 @@ func TestValidateAnimatedGIF(t *testing.T) {
 func TestRenderArgsDefaults(t *testing.T) {
 	t.Parallel()
 
-	got := renderArgs("in.cast", "out.gif", normalizeConfig(Config{}))
+	got := renderArgs("in.cast", "out.gif", NormalizeConfig(Config{}))
 	want := []string{
 		"--theme", "monokai",
 		"--speed", "1",
@@ -54,7 +54,7 @@ func TestRenderArgsDefaults(t *testing.T) {
 func TestRenderArgsIncludesFontWhenSet(t *testing.T) {
 	t.Parallel()
 
-	got := renderArgs("in.cast", "out.gif", normalizeConfig(Config{Font: "Cascadia Mono"}))
+	got := renderArgs("in.cast", "out.gif", NormalizeConfig(Config{Font: "Cascadia Mono"}))
 	want := []string{
 		"--theme", "monokai",
 		"--speed", "1",
@@ -72,7 +72,7 @@ func TestRenderArgsIncludesFontWhenSet(t *testing.T) {
 func TestRenderArgsIncludesLetterSpacingWhenSet(t *testing.T) {
 	t.Parallel()
 
-	got := renderArgs("in.cast", "out.gif", normalizeConfig(Config{LetterSpacing: -0.5}))
+	got := renderArgs("in.cast", "out.gif", NormalizeConfig(Config{LetterSpacing: -0.5}))
 	want := []string{
 		"--theme", "monokai",
 		"--speed", "1",
