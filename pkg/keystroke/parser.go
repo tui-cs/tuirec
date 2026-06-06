@@ -36,6 +36,16 @@ func Parse(script string) ([]Action, error) {
 
 	actions := make([]Action, 0, len(tokens))
 	for _, token := range tokens {
+		if multi, ok, err := parseMultiAction(token); ok || err != nil {
+			if err != nil {
+				return nil, err
+			}
+
+			actions = append(actions, multi...)
+
+			continue
+		}
+
 		action, err := parseToken(token)
 		if err != nil {
 			return nil, err
@@ -45,6 +55,18 @@ func Parse(script string) ([]Action, error) {
 	}
 
 	return actions, nil
+}
+
+// parseMultiAction handles tokens that expand into several timed actions (rather
+// than a single Write), returning ok=false for everything else so parseToken can
+// handle it.
+func parseMultiAction(token string) ([]Action, bool, error) {
+	mouseToken, mouseMods, _ := parseMouseModifierPrefix(token)
+	if strings.HasPrefix(mouseToken, "smoothdrag:") {
+		return parseSmoothDrag(token, mouseToken, mouseMods)
+	}
+
+	return nil, false, nil
 }
 
 func parseToken(token string) (Action, error) {
@@ -248,6 +270,69 @@ func parseDrag(token, mouseToken string, mouseMods int) (string, bool, error) {
 
 	seq += sgrRelease(mouseMods, col2, row2)
 	return seq, true, nil
+}
+
+// defaultSmoothDragStepMs paces smoothdrag motion events when no step delay is
+// given: ~25 moves/second, which reads as smooth real-time panning while still
+// letting the app render each intermediate position.
+const defaultSmoothDragStepMs = 40
+
+// parseSmoothDrag expands smoothdrag:col1:row1:col2:row2[:stepMs] into a press,
+// one motion event per cell stepped at stepMs apart, and a release. Unlike drag:
+// (which emits the whole gesture at one instant, so apps coalesce it into a
+// jump), spacing the motion events in time makes the app redraw each step, so a
+// recording captures a smooth pan instead of a single hop.
+func parseSmoothDrag(token, mouseToken string, mouseMods int) ([]Action, bool, error) {
+	value := mouseToken[len("smoothdrag:"):]
+	parts := strings.Split(value, ":")
+	if len(parts) != 4 && len(parts) != 5 {
+		return nil, true, fmt.Errorf(
+			"invalid smoothdrag token (expected smoothdrag:col1:row1:col2:row2[:stepMs]): %s", token)
+	}
+
+	for _, p := range parts {
+		if p == "" || !allDigits(p) {
+			return nil, true, fmt.Errorf("invalid smoothdrag token (non-numeric value): %s", token)
+		}
+	}
+
+	col1, _ := strconv.Atoi(parts[0])
+	row1, _ := strconv.Atoi(parts[1])
+	col2, _ := strconv.Atoi(parts[2])
+	row2, _ := strconv.Atoi(parts[3])
+	if col1 < 1 || row1 < 1 || col2 < 1 || row2 < 1 {
+		return nil, true, fmt.Errorf("mouse coordinates are 1-based: %s", token)
+	}
+
+	stepMs := defaultSmoothDragStepMs
+	if len(parts) == 5 {
+		stepMs, _ = strconv.Atoi(parts[4])
+	}
+	if stepMs <= 0 {
+		return nil, true, fmt.Errorf("smoothdrag step delay must be positive: %s", token)
+	}
+	delay := time.Duration(stepMs) * time.Millisecond
+
+	dx := col2 - col1
+	dy := row2 - row1
+	steps := abs(dx)
+	if abs(dy) > steps {
+		steps = abs(dy)
+	}
+	if steps == 0 {
+		steps = 1
+	}
+
+	actions := make([]Action, 0, steps+2)
+	actions = append(actions, Action{Kind: Write, Sequence: sgrPress(mouseMods, col1, row1), Delay: delay, Label: token})
+	for i := 1; i <= steps; i++ {
+		cx := col1 + dx*i/steps
+		cy := row1 + dy*i/steps
+		actions = append(actions, Action{Kind: Write, Sequence: sgrPress(32+mouseMods, cx, cy), Delay: delay, Label: token})
+	}
+	actions = append(actions, Action{Kind: Write, Sequence: sgrRelease(mouseMods, col2, row2), Delay: delay, Label: token})
+
+	return actions, true, nil
 }
 
 // parseMouseMove handles move: or hover: tokens for mouse motion events (used

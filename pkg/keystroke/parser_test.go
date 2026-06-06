@@ -345,3 +345,50 @@ func TestParseCapitalizedKeysStillWork(t *testing.T) {
 		t.Fatalf("Parse() = %#v, want %#v", actions, want)
 	}
 }
+
+func TestParseSmoothDragExpandsToTimedSteps(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("smoothdrag:5:5:8:5:50")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	want := []string{
+		"\x1b[<0;5;5M",  // press
+		"\x1b[<32;6;5M", // motion
+		"\x1b[<32;7;5M",
+		"\x1b[<32;8;5M",
+		"\x1b[<0;8;5m", // release
+	}
+	if len(actions) != len(want) {
+		t.Fatalf("got %d actions, want %d: %#v", len(actions), len(want), actions)
+	}
+	for i, a := range actions {
+		if a.Kind != Write {
+			t.Fatalf("action %d kind = %v, want Write", i, a.Kind)
+		}
+		if a.Sequence != want[i] {
+			t.Fatalf("action %d sequence = %q, want %q", i, a.Sequence, want[i])
+		}
+		if a.Delay != 50*time.Millisecond {
+			t.Fatalf("action %d delay = %s, want 50ms", i, a.Delay)
+		}
+	}
+}
+
+func TestParseSmoothDragDefaultsStepDelay(t *testing.T) {
+	t.Parallel()
+
+	actions, err := Parse("smoothdrag:1:1:1:4")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	// press + 3 vertical steps + release.
+	if len(actions) != 5 {
+		t.Fatalf("got %d actions, want 5", len(actions))
+	}
+	if actions[1].Delay != defaultSmoothDragStepMs*time.Millisecond {
+		t.Fatalf("default step delay = %s, want %dms", actions[1].Delay, defaultSmoothDragStepMs)
+	}
+}
