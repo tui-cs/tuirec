@@ -17,7 +17,7 @@ type asset struct {
 }
 
 func main() {
-	version := flag.String("version", "v1.9.0-sixel", "agg release version")
+	version := flag.String("version", "v1.10.1-sixel", "agg release version")
 	outputDir := flag.String("output", filepath.Join("build", "agg"), "output directory")
 	flag.Parse()
 
