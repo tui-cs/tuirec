@@ -19,7 +19,7 @@ can use this as context to drive `tuirec record` (GIF) or `tuirec snapshot`
 ```
 
 > **Note:** `tuirec record` auto-downloads `agg` if not found on PATH or in the
-> cache (`~/.cache/tuirec/agg-v1.10.1-sixel/`). No separate setup needed.
+> cache (`~/.cache/tuirec/agg-v1.10.2-sixel/`). No separate setup needed.
 >
 > **Sixel graphics:** tuirec answers the terminal queries a sixel-capable app
 > needs — DA1 (advertises sixel) plus the window/cell-size reports
