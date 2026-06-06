@@ -21,7 +21,7 @@ Rewrite tuirec as a **cross-platform Go CLI** that records any terminal app and 
 | Windows ConPTY library | `github.com/UserExistsError/conpty` | Resolves CLAUDE.md open decision #1. The previously-referenced `iamacarpet/go-conpty` **does not exist** as a module. `UserExistsError/conpty` builds and passes on Windows — proven by the Phase 1 spike (PR #3) |
 | Windows in v1 | **In scope — folded back into Phase 1** (not a deferred spike) | PR #3 is the spike evidence: ConPTY works. Cross-platform PTY is a Phase 1 deliverable again. The only Windows item still deferred is agg-on-Windows in CI for full-GIF integration |
 | Module path | `github.com/gui-cs/tuirec` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
-| agg distribution | Bundle pinned `agg v1.10.1-sixel` in release archives and support source-build prerequisites | Release archives include a sibling `agg` binary that tuirec auto-detects before PATH. `go install`/local builds still require `agg` on PATH or `--agg-path`. Upstream does not publish a native Windows ARM64 asset for `v1.10.1-sixel`; Windows ARM64 archives include the x64 Windows binary for OS emulation, or users can build `agg` from source and pass `--agg-path` |
+| agg distribution | Bundle pinned `agg v1.10.2-sixel` in release archives and support source-build prerequisites | Release archives include a sibling `agg` binary that tuirec auto-detects before PATH. `go install`/local builds still require `agg` on PATH or `--agg-path`. Upstream does not publish a native Windows ARM64 asset for `v1.10.2-sixel`; Windows ARM64 archives include the x64 Windows binary for OS emulation, or users can build `agg` from source and pass `--agg-path` |
 | Recording clock | Support a deterministic (scripted) clock in addition to wall-clock | Wall-clock timing makes GIFs non-reproducible and CI flaky; scripted timing enables golden-GIF regression |
 
 ---
@@ -66,7 +66,7 @@ Rewrite tuirec as a **cross-platform Go CLI** that records any terminal app and 
      `.cast` is byte-stable; store it in `testdata/` and diff.
 
 4. **FR-4: Render the cast file to an animated GIF**
-   - Invoke pinned `agg v1.10.1-sixel` (prerequisite; see Decisions + CI).
+   - Invoke pinned `agg v1.10.2-sixel` (prerequisite; see Decisions + CI).
    - Flag mapping (apply only the flags whose CLI value is set):
 
      | CLI flag | agg flag | Notes |
@@ -349,7 +349,7 @@ row and no Unix-only fallback.
 | 5 | `pkg/record` orchestration + teardown | `go test -race ./pkg/record`: deadline, drain window, single-owner close, no data race | `go run ./examples/record-pipeline -output ./pipeline-demo.gif -cast-output ./pipeline-demo.cast`, then open `pipeline-demo.gif`. The demo auto-detects `./tools/agg.exe`/`./tools/agg` before PATH. |
 | 6 | CLI wiring (cobra), all flags + exit codes | `go test ./cmd/tuirec`: flag parsing + exit-code table; `--help` snapshot | `go run ./cmd/tuirec record --binary go --args run,./internal/testapp --keystrokes "wait:1000,Ctrl+Q" --output ./cli-demo.gif --cast-output ./cli-demo.cast`, then open `cli-demo.gif`. |
 | 7 | End-to-end GIF integration | `go test -tags integration ./...` green on ubuntu + macOS: real `tuirec record` command + `internal/testapp` -> validated GIF. Windows PTY is already covered by Phase 1; Windows full-GIF integration follows in Phase 8. | Same CLI command as Phase 6, documented as the canonical README quickstart using `internal/testapp`. |
-| 8 | Windows full-GIF integration | `go test -tags integration ./...` green on ubuntu + macOS + windows: CI installs pinned `agg v1.10.1-sixel` on Windows and runs the real CLI `internal/testapp` -> validated GIF path there too. | Same canonical CLI demo on Windows, using repo-local `tools\agg.exe` or `agg` on PATH. |
+| 8 | Windows full-GIF integration | `go test -tags integration ./...` green on ubuntu + macOS + windows: CI installs pinned `agg v1.10.2-sixel` on Windows and runs the real CLI `internal/testapp` -> validated GIF path there too. | Same canonical CLI demo on Windows, using repo-local `tools\agg.exe` or `agg` on PATH. |
 
 ---
 
@@ -367,7 +367,7 @@ row and no Unix-only fallback.
 ### Release Process
 
 1. Tag a commit: `git tag v0.1.0 && git push --tags`
-2. GoReleaser (via `.github/workflows/release.yml`) downloads pinned `agg v1.10.1-sixel`, then builds for linux/darwin/windows × amd64/arm64
+2. GoReleaser (via `.github/workflows/release.yml`) downloads pinned `agg v1.10.2-sixel`, then builds for linux/darwin/windows × amd64/arm64
 3. Creates GitHub Release with tarballs/zips containing `tuirec`, matching `agg`, README, LICENSE, and checksums
 4. Homebrew tap and Scoop bucket publishing are enabled after the target repos
    and tokens exist.
@@ -376,7 +376,7 @@ row and no Unix-only fallback.
 
 - `.github/workflows/ci.yml` — already present. Pins **Go 1.22**, runs
   build + unit tests + `go vet` on ubuntu/macOS/windows, `golangci-lint`
-  on ubuntu, and an integration job that installs **pinned `agg v1.10.1-sixel`**
+  on ubuntu, and an integration job that installs **pinned `agg v1.10.2-sixel`**
   per-OS (Linux `x86_64-unknown-linux-musl`, macOS `aarch64-apple-darwin`,
   Windows `x86_64-pc-windows-msvc.exe`) then runs
   `go test -tags integration ./...`. The Windows integration job exercises
@@ -431,7 +431,7 @@ Encode these so they are **not** rediscovered:
 | Risk | Mitigation |
 |------|-----------|
 | Windows ConPTY quirks | **Resolved:** spike (PR #3) proved `github.com/UserExistsError/conpty` builds + passes on Windows; folded into Phase 1. Full Windows cast→GIF integration is covered by the CI integration job. |
-| agg not available on all platforms | Pinned `agg v1.10.1-sixel`, installed per-OS in CI and bundled into release archives; source-build prerequisite behavior is documented |
+| agg not available on all platforms | Pinned `agg v1.10.2-sixel`, installed per-OS in CI and bundled into release archives; source-build prerequisite behavior is documented |
 | Key map incompleteness | Full normative table in-spec (incl. the F11/F12/`Alt` gaps the prototype had); R6 unit test per row; the `Ctrl+Q` bug is the testapp's exit path |
 | Weak success signal | GIF validation decodes frames + asserts pixel variance + golden compare, not just magic bytes |
 | Non-reproducible recordings | `--clock scripted` makes `.cast`/GIF byte-stable for golden regression |
@@ -451,7 +451,7 @@ v1 is done when:
    and `go test -tags integration ./...` green
 3. PTY recording and the full cast→GIF pipeline work on Linux, macOS,
    **and Windows** (ConPTY)
-4. Release archives include `tuirec` plus pinned `agg v1.10.1-sixel`; source builds require `agg` separately
+4. Release archives include `tuirec` plus pinned `agg v1.10.2-sixel`; source builds require `agg` separately
 5. README with install instructions and usage examples
 6. CI green on the matrix (untagged tests and `integration` job on Linux,
    macOS, and Windows)

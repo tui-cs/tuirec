@@ -213,7 +213,7 @@ Don't accidentally pursue these:
 See `spec.md`  "Key Risks" for known unknowns. Key open questions:
 
 1. ~~Windows ConPTY library choice~~ — **Resolved:** `github.com/UserExistsError/conpty` (the earlier-referenced `iamacarpet/go-conpty` does not exist). Proven by the Phase 1 spike (PR #3). Windows is folded back into Phase 1.
-2. ~~Whether to bundle `agg` or require it~~ — **Resolved:** require it; pin the sixel-capable fork `tig/agg v1.10.1-sixel` (see `spec.md` Decisions). Release archives bundle it; source builds auto-download or use `--agg-path`.
+2. ~~Whether to bundle `agg` or require it~~ — **Resolved:** require it; pin the sixel-capable fork `tig/agg v1.10.2-sixel` (see `spec.md` Decisions). Release archives bundle it; source builds auto-download or use `--agg-path`.
 3. Mouse event encoding format (currently `click:col:row` from prototype)
 
 If a task touches one of these, surface the decision rather than picking unilaterally.
