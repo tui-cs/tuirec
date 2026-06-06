@@ -105,11 +105,17 @@ func (p Player) playAction(action Action) error {
 				sequence = resolved
 			}
 		}
-		p.logf("key %s -> %s; delay %s\n", actionName(action), strconv.Quote(sequence), p.keystrokeDelay)
+		delay := p.keystrokeDelay
+		if action.Delay > 0 {
+			// A Write may carry its own pacing (e.g. the fast per-step cadence of
+			// smoothdrag), overriding the default keystroke delay.
+			delay = action.Delay
+		}
+		p.logf("key %s -> %s; delay %s\n", actionName(action), strconv.Quote(sequence), delay)
 		if err := p.write(sequence); err != nil {
 			return err
 		}
-		p.sleeper.Sleep(p.keystrokeDelay)
+		p.sleeper.Sleep(delay)
 	case Literal:
 		return p.writeLiteral(action.Sequence)
 	default:
