@@ -34,6 +34,11 @@ type Config struct {
 	FontSize      int
 	LineHeight    float64
 	LetterSpacing float64
+	// Select is passed to agg's --select to render only part of the timeline.
+	// Use it to trim a recording's lead-in (e.g. "0.2.." drops the first 0.2s),
+	// which is handy for sixel apps that paint a cell-based fallback frame
+	// before the terminal's sixel-capability handshake completes.
+	Select string
 }
 
 // Validation describes a decoded GIF.
@@ -71,6 +76,9 @@ func renderArgs(castPath, outputPath string, config Config) []string {
 	}
 	if config.LetterSpacing != 0 {
 		args = append(args, "--letter-spacing", formatFloat(config.LetterSpacing))
+	}
+	if config.Select != "" {
+		args = append(args, "--select", config.Select)
 	}
 	args = append(args, castPath, outputPath)
 

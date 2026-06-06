@@ -591,6 +591,51 @@ func TestRecordCommandNameFlag(t *testing.T) {
 	}
 }
 
+func TestSelectFlagOnlyOnRecord(t *testing.T) {
+	t.Parallel()
+
+	opts := cliOptions{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+
+	if f := newRecordCommand(opts).Flags().Lookup("select"); f == nil {
+		t.Fatal("record command should expose --select to trim the GIF lead-in")
+	}
+
+	// snapshot must NOT expose --select: it would apply agg's selection to the
+	// rendered PNG while the assertion/print-frame-text path reconstructs text
+	// from the unselected cast by frame index, so the two would disagree about
+	// which frame is being inspected. snapshot already targets any frame via
+	// --frame at:<ms>.
+	if f := newSnapshotCommand(opts).Flags().Lookup("select"); f != nil {
+		t.Fatal("snapshot command must not expose --select (desyncs PNG from assertion text)")
+	}
+}
+
+func TestRecordCommandParsesSelect(t *testing.T) {
+	t.Parallel()
+
+	var got record.Config
+	code := execute([]string{
+		"record",
+		"--binary", "demo-app",
+		"--select", "0.2..",
+		"--keystrokes", "wait:10,Ctrl+Q",
+	}, cliOptions{
+		stdout: &bytes.Buffer{},
+		stderr: &bytes.Buffer{},
+		look:   func(path string) (string, error) { return path, nil },
+		run: func(_ context.Context, config record.Config) (record.Result, error) {
+			got = config
+			return record.Result{CastPath: config.CastOutput, GIFPath: config.Output}, nil
+		},
+	})
+	if code != exitSuccess {
+		t.Fatalf("execute code = %d, want %d", code, exitSuccess)
+	}
+	if got.GIF.Select != "0.2.." {
+		t.Fatalf("GIF.Select = %q, want %q", got.GIF.Select, "0.2..")
+	}
+}
+
 func TestRecordCommandNameFlagExplicitOutputOverrides(t *testing.T) {
 	t.Parallel()
 
