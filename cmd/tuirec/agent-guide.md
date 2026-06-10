@@ -116,12 +116,15 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   noise. Setup sequences (e.g. alt-screen enter) are preserved. Disable with
   `--trim=false` if you need the raw timing.
 - **Sixel graphics in GIFs** — tuirec answers DA1 (advertising sixel) and the
-  `CSI 14/16/18 t` window/cell-size queries so sixel-capable apps detect support,
-  size their raster to match `agg`'s cells, and lay out their UI; the sixel DCS is
-  preserved in the `.cast` and rendered by a sixel-aware `agg`. Caveats: **not on
-  Windows** (ConPTY strips sixel DCS — record on Linux/macOS), and pass
-  **`--trim=false`** for alternate-screen apps. To record a Terminal.Gui sixel
-  scenario (e.g. UICatalog's `Mandelbrot`), launch the scenario directly
+  `CSI 14/16/18 t` window/cell-size queries so sixel-capable apps detect support
+  and lay out their UI; the sixel DCS is preserved in the `.cast` and rendered by
+  a sixel-aware `agg`. Caveats: **not on Windows** (ConPTY strips sixel DCS —
+  record on Linux/macOS); pass **`--trim=false`** for alternate-screen apps; and
+  the advertised sixel cell resolution may **not** equal `agg`'s rendered font
+  cell ([#84](https://github.com/gui-cs/tuirec/issues/84)), so a raster sized
+  `cells × reportedResolution` can render a few percent undersized — verify size
+  by measurement (see below), do not assume it fills. To record a Terminal.Gui
+  sixel scenario (e.g. UICatalog's `Mandelbrot`), launch the scenario directly
   (`--binary <UICatalog> --args Mandelbrot`), use `--trim=false`, quit with `Esc`
   (Terminal.Gui v2's quit key, not `Ctrl+Q`), and confirm with
   `grep -c "u001bP" demo.cast` that the cast holds sixel DCS payloads.
@@ -130,6 +133,22 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   cast to see the final printed output). Post-exit terminal noise (stderr from
   ConfigurationManager, shell prompt redraws) is normal during `--drain` — filter
   accordingly when validating.
+- **Verifying grid-anchored sixels — measure, don't eyeball** — confirming a
+  sixel *appears* in the GIF, or that `agg` rendered it faithfully at the
+  requested cursor cell, does **not** prove it is the right size or position: a
+  pixel-faithful render of a raster built from the wrong cell size is still wrong,
+  and a ~4% error is invisible by sight. Because the advertised cell resolution
+  may not match `agg`'s rendered font cell
+  ([#84](https://github.com/gui-cs/tuirec/issues/84)), a sixel sized
+  `cells × reportedResolution` can come out undersized. The invariant to check is
+  *does the rendered sixel cover the cells it was meant to cover, in position and
+  size?* — verify it with arithmetic: extract a frame, measure `agg`'s real cell
+  from a known grid reference (e.g. a border spanning N columns →
+  `cellPx = spanPx / cells`; don't trust `imageWidth / cols`, `agg` adds margins),
+  read the app's raster size from the sixel DCS header (`P…q"a;b;W;H`), and confirm
+  they agree and that the rendered bounding box spans the intended columns/rows.
+  This is the cheap check that turns "looks right" into a number, which is the
+  only thing that catches sub-cell and few-percent errors.
 - **Key-name collisions with literal words** — bare tokens like `delete`, `home`,
   `end`, `space`, `tab` resolve as **key presses**, not literal text. If you mean
   to type those words as text, you must backtick-quote them: `` `delete` ``,
