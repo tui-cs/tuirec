@@ -3,6 +3,8 @@ package record
 import (
 	"math"
 	"testing"
+
+	"github.com/gui-cs/tuirec/pkg/gif"
 )
 
 func TestAlignFontSize(t *testing.T) {
@@ -56,6 +58,22 @@ func TestAlignLineHeightRendersExactInteger(t *testing.T) {
 	rendered := 15 * lh
 	if math.Abs(rendered-float64(cellH)) > 1e-9 {
 		t.Fatalf("agg row height %.6f != reported cellH %d", rendered, cellH)
+	}
+}
+
+func TestWillRenderGIF(t *testing.T) {
+	// A GIF is rendered whenever Output is set; calibration must run there even
+	// when AggPath is the zero value (normalized to "agg" downstream).
+	if !willRenderGIF(Config{Output: "out.gif"}) {
+		t.Fatal("Output set (empty AggPath) should render and calibrate")
+	}
+
+	if !willRenderGIF(Config{Output: "out.gif", GIF: gif.Config{AggPath: "agg"}}) {
+		t.Fatal("Output set with explicit AggPath should render and calibrate")
+	}
+
+	if willRenderGIF(Config{}) {
+		t.Fatal("no Output should not render")
 	}
 }
 

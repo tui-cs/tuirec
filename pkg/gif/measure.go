@@ -23,7 +23,7 @@ const (
 // yields the per-column width independent of that padding — and independent of
 // which font agg resolves on the host, which a static formula cannot know.
 func MeasureColumnWidthPx(ctx context.Context, config Config) (float64, error) {
-	config = NormalizeConfig(config)
+	config = probeConfig(NormalizeConfig(config))
 
 	dir, err := os.MkdirTemp("", "tuirec-probe-*")
 	if err != nil {
@@ -47,6 +47,18 @@ func MeasureColumnWidthPx(ctx context.Context, config Config) (float64, error) {
 	}
 
 	return float64(span) / float64(probeWideCols-probeNarrowCols), nil
+}
+
+// probeConfig strips timeline-only options that would distort or empty the
+// synthetic probe render. The cell geometry agg renders at is independent of
+// the timeline, but a Select range (e.g. "1..") can trim away the probe cast's
+// only events at 0.1s/0.2s, leaving agg an empty selection and breaking
+// calibration. Font and spacing options that DO affect column width
+// (FontSize, LineHeight, Font, LetterSpacing) are preserved.
+func probeConfig(config Config) Config {
+	config.Select = ""
+
+	return config
 }
 
 // renderProbeWidth writes a minimal cast of the given column count, renders it

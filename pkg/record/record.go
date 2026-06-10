@@ -99,6 +99,16 @@ func sixelGeometry(size pty.Size, gifConfig gif.Config) (cols, rows, cellW, cell
 	return size.Cols, size.Rows, cellW, cellH
 }
 
+// willRenderGIF reports whether Run will render a GIF, and therefore whether the
+// sixel cell size should be calibrated against agg. It mirrors the render gate
+// (`config.Output != ""`). AggPath is deliberately not checked: an empty path is
+// the common zero-value API case and is normalized to "agg" by gif.Render and
+// calibrateGeometry alike, so gating on it would skip calibration for renders
+// that still happen.
+func willRenderGIF(config Config) bool {
+	return config.Output != ""
+}
+
 type gifRenderer struct{}
 
 type contextWriter struct {
@@ -187,7 +197,7 @@ func Run(parent context.Context, config Config) (Result, error) {
 	// cell agg actually renders and align the font so the integer cell report
 	// matches it exactly (gui-cs/tuirec#84). Falls back to the formula geometry
 	// above if calibration fails or no GIF is produced (no agg available).
-	if config.Output != "" && config.GIF.AggPath != "" {
+	if willRenderGIF(config) {
 		if adjusted, cw, ch, changed, calErr := calibrateGeometry(ctx, config.GIF); calErr != nil {
 			logf(config, "sixel cell calibration failed (%v); using formula %dx%d px\n", calErr, cellW, cellH)
 		} else {
