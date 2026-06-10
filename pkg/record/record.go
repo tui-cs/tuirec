@@ -83,8 +83,13 @@ type Result struct {
 // queries. The size and font config are normalized with the same defaults
 // pty.Start and gif.Render apply, so a zero-valued Config still reports the
 // dimensions the PTY and agg actually use instead of zeros (which would break
-// app layout or yield a 0x0 raster). The cell size mirrors agg's rendering:
+// app layout or yield a 0x0 raster). The cell size approximates agg's rendering:
 // row = fontSize*lineHeight, column ~= 0.6*fontSize for a monospace font.
+//
+// This is a fallback estimate. When a GIF is rendered, Run replaces it with a
+// measured, grid-aligned cell via calibrateGeometry, because the 0.6 column
+// ratio is wrong for whatever font agg actually resolves on the host and a
+// fractional advance cannot be reported as an integer cell (gui-cs/tuirec#84).
 func sixelGeometry(size pty.Size, gifConfig gif.Config) (cols, rows, cellW, cellH int) {
 	size = pty.NormalizeSize(size)
 	gifConfig = gif.NormalizeConfig(gifConfig)
@@ -177,6 +182,25 @@ func Run(parent context.Context, config Config) (Result, error) {
 	// capability and report the screen/cell size. This lets recorded apps
 	// detect sixel support, lay out their UI, and emit DCS payloads.
 	cols, rows, cellW, cellH := sixelGeometry(config.Size, config.GIF)
+
+	// When a GIF will be rendered, calibrate the reported cell size against the
+	// cell agg actually renders and align the font so the integer cell report
+	// matches it exactly (gui-cs/tuirec#84). Falls back to the formula geometry
+	// above if calibration fails or no GIF is produced (no agg available).
+	if config.Output != "" && config.GIF.AggPath != "" {
+		if adjusted, cw, ch, changed, calErr := calibrateGeometry(ctx, config.GIF); calErr != nil {
+			logf(config, "sixel cell calibration failed (%v); using formula %dx%d px\n", calErr, cellW, cellH)
+		} else {
+			config.GIF = adjusted
+			cellW, cellH = cw, ch
+			logf(config, "sixel cell calibrated to %dx%d px (agg font-size %d, line-height %.4f)\n", cellW, cellH, adjusted.FontSize, adjusted.LineHeight)
+
+			if changed && config.LogWriter != nil {
+				fmt.Fprintf(config.LogWriter, "tuirec: adjusted agg font-size to %d to align the sixel cell grid (#84)\n", adjusted.FontSize)
+			}
+		}
+	}
+
 	ptyReader = newSixelInterceptor(ptyReader, session, cols, rows, cellW, cellH)
 
 	// Wrap the recorder with a synchronized writer when pointer injection is
