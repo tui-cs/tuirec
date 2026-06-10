@@ -130,6 +130,11 @@ const (
 	sourceContext
 )
 
+// calibrationTimeout bounds the agg probe renders used to calibrate the sixel
+// cell size. It is independent of the recording's MaxDuration because
+// calibration is pre-recording setup, not part of the captured timeline.
+const calibrationTimeout = 60 * time.Second
+
 // Run executes one recording pipeline.
 func Run(parent context.Context, config Config) (Result, error) {
 	config = normalizeConfig(config)
@@ -142,6 +147,33 @@ func Run(parent context.Context, config Config) (Result, error) {
 	actions, err := keystroke.Parse(config.Keystrokes)
 	if err != nil {
 		return Result{}, err
+	}
+
+	// Compute the sixel cell geometry to report and, when a GIF will be rendered,
+	// calibrate it against the cell agg actually renders so the integer cell
+	// report matches it exactly (gui-cs/tuirec#84). This runs BEFORE the
+	// MaxDuration context is created so the agg probe-render time is not charged
+	// against the recording budget — otherwise a short MaxDuration would
+	// spuriously trip "recording hit max duration". Falls back to the formula
+	// geometry if calibration fails or no GIF is produced (no agg available).
+	cols, rows, cellW, cellH := sixelGeometry(config.Size, config.GIF)
+
+	if willRenderGIF(config) {
+		calCtx, calCancel := context.WithTimeout(parent, calibrationTimeout)
+		adjusted, cw, ch, changed, calErr := calibrateGeometry(calCtx, config.GIF)
+		calCancel()
+
+		if calErr != nil {
+			logf(config, "sixel cell calibration failed (%v); using formula %dx%d px\n", calErr, cellW, cellH)
+		} else {
+			config.GIF = adjusted
+			cellW, cellH = cw, ch
+			logf(config, "sixel cell calibrated to %dx%d px (agg font-size %d, line-height %.4f)\n", cellW, cellH, adjusted.FontSize, adjusted.LineHeight)
+
+			if changed && config.LogWriter != nil {
+				fmt.Fprintf(config.LogWriter, "tuirec: adjusted agg font-size to %d to align the sixel cell grid (#84)\n", adjusted.FontSize)
+			}
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(parent, config.MaxDuration)
@@ -189,28 +221,9 @@ func Run(parent context.Context, config Config) (Result, error) {
 	}
 
 	// Always intercept DA1/DA2 and geometry queries to advertise sixel
-	// capability and report the screen/cell size. This lets recorded apps
-	// detect sixel support, lay out their UI, and emit DCS payloads.
-	cols, rows, cellW, cellH := sixelGeometry(config.Size, config.GIF)
-
-	// When a GIF will be rendered, calibrate the reported cell size against the
-	// cell agg actually renders and align the font so the integer cell report
-	// matches it exactly (gui-cs/tuirec#84). Falls back to the formula geometry
-	// above if calibration fails or no GIF is produced (no agg available).
-	if willRenderGIF(config) {
-		if adjusted, cw, ch, changed, calErr := calibrateGeometry(ctx, config.GIF); calErr != nil {
-			logf(config, "sixel cell calibration failed (%v); using formula %dx%d px\n", calErr, cellW, cellH)
-		} else {
-			config.GIF = adjusted
-			cellW, cellH = cw, ch
-			logf(config, "sixel cell calibrated to %dx%d px (agg font-size %d, line-height %.4f)\n", cellW, cellH, adjusted.FontSize, adjusted.LineHeight)
-
-			if changed && config.LogWriter != nil {
-				fmt.Fprintf(config.LogWriter, "tuirec: adjusted agg font-size to %d to align the sixel cell grid (#84)\n", adjusted.FontSize)
-			}
-		}
-	}
-
+	// capability and report the screen/cell size (computed/calibrated above).
+	// This lets recorded apps detect sixel support, lay out their UI, and emit
+	// DCS payloads.
 	ptyReader = newSixelInterceptor(ptyReader, session, cols, rows, cellW, cellH)
 
 	// Wrap the recorder with a synchronized writer when pointer injection is
