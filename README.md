@@ -28,12 +28,14 @@ $gobin = "$(go env GOPATH)\bin"
 
 Verify: `tuirec --version`
 
-Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned, sixel-capable `agg` binary (`tig/agg v1.10.2-sixel`) next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
+Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned, sixel- and Kitty-graphics-capable `agg` binary (`tig/agg v1.11.0-sixel`) next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
-**Prerequisite for source builds:** [agg](https://github.com/tig/agg) `v1.10.2-sixel` — a sixel-capable fork of asciinema/agg — renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.10.2-sixel/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.10.2-sixel\` on Windows). You can also pass `--agg-path` explicitly.
+**Prerequisite for source builds:** [agg](https://github.com/tig/agg) `v1.11.0-sixel` — a fork of asciinema/agg that renders sixel and Kitty graphics — renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.11.0-sixel/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.11.0-sixel\` on Windows). You can also pass `--agg-path` explicitly.
 
 **Sixel graphics:** tuirec answers the queries a sixel-capable app needs — DA1 (advertises sixel) and the `CSI 14/16/18 t` window/cell-size reports, so the app detects sixel, sizes its raster to match `agg`'s cells, and lays out its UI — and preserves the sixel DCS in the `.cast`. With a sixel-aware `agg` the images render in the GIF. Caveats: sixel capture works on **Linux/macOS only** (Windows ConPTY strips sixel DCS from the output stream), and full-screen / alternate-screen apps need `--trim=false` (otherwise trim can discard the recording).
+
+**Kitty graphics:** tuirec advertises a deterministic Kitty graphics identity to the recorded app (a `KITTY_WINDOW_ID` marker), so apps that prefer the Kitty graphics protocol over sixel emit Kitty image escapes, which the pinned `agg` (`v1.11.0-sixel`, built on a Kitty-capable `avt`) renders in the GIF. The recorded app's own host Kitty/Ghostty identity vars are stripped first so the advertised identity is the same regardless of which terminal you record from. As with sixel, Kitty graphics capture is **Linux/macOS only** (Windows ConPTY strips the escapes).
 
 ## Build and Run Locally on Windows
 
@@ -64,12 +66,12 @@ To install the pinned `agg` binary locally for demos on Windows:
 ```powershell
 New-Item -ItemType Directory -Force .\tools | Out-Null
 Invoke-WebRequest `
-  https://github.com/tig/agg/releases/download/v1.10.2-sixel/agg-x86_64-pc-windows-msvc.exe `
+  https://github.com/tig/agg/releases/download/v1.11.0-sixel/agg-x86_64-pc-windows-msvc.exe `
   -OutFile .\tools\agg.exe
 .\tools\agg.exe --version
 ```
 
-On Windows ARM64, the `agg v1.10.2-sixel` release does not publish a native ARM64 Windows binary. The Windows ARM64 tuirec release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
+On Windows ARM64, the `agg v1.11.0-sixel` release does not publish a native ARM64 Windows binary. The Windows ARM64 tuirec release archive includes the x64 Windows `agg` binary for Windows x64 emulation (validated on Windows ARM64). You can also build `agg` from source and pass that binary with `--agg-path`. The demo commands automatically prefer `.\tools\agg.exe` when it exists.
 
 To create and open a visible demo GIF from the bundled cast fixture:
 

@@ -73,24 +73,31 @@ func TestNormalizeEnvOverridesParentValues(t *testing.T) {
 	}
 }
 
-func TestNormalizeEnvScrubsKittyIdentityVars(t *testing.T) {
-	t.Setenv("KITTY_WINDOW_ID", "1")
+func TestNormalizeEnvAdvertisesDeterministicKittyIdentity(t *testing.T) {
+	t.Setenv("KITTY_WINDOW_ID", "host-99")
 	t.Setenv("KITTY_PID", "4242")
 	t.Setenv("GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty")
 
 	env := normalizeEnv(nil)
-	assertEnvKeyAbsent(t, env, "KITTY_WINDOW_ID")
+	// Host-specific operational vars are stripped...
 	assertEnvKeyAbsent(t, env, "KITTY_PID")
 	assertEnvKeyAbsent(t, env, "GHOSTTY_RESOURCES_DIR")
+	// ...and a single deterministic Kitty identity is advertised so the recorded
+	// app detects Kitty graphics support regardless of the host terminal.
+	assertEnvContains(t, env, "KITTY_WINDOW_ID="+kittyWindowID)
+	assertEnvKeyCount(t, env, "KITTY_WINDOW_ID", 1)
 }
 
-func TestNormalizeEnvDropsKittyClassTermProgram(t *testing.T) {
+func TestNormalizeEnvPreservesKittyClassTermProgram(t *testing.T) {
 	t.Setenv("TERM_PROGRAM", "ghostty")
 	t.Setenv("TERM_PROGRAM_VERSION", "1.0.0")
 
 	env := normalizeEnv(nil)
-	assertEnvKeyAbsent(t, env, "TERM_PROGRAM")
-	assertEnvKeyAbsent(t, env, "TERM_PROGRAM_VERSION")
+	// TERM_PROGRAM is no longer scrubbed; Kitty detection is driven by the
+	// advertised KITTY_WINDOW_ID instead.
+	assertEnvContains(t, env, "TERM_PROGRAM=ghostty")
+	assertEnvContains(t, env, "TERM_PROGRAM_VERSION=1.0.0")
+	assertEnvContains(t, env, "KITTY_WINDOW_ID="+kittyWindowID)
 }
 
 func TestNormalizeEnvPreservesNonKittyTermProgram(t *testing.T) {
@@ -102,11 +109,13 @@ func TestNormalizeEnvPreservesNonKittyTermProgram(t *testing.T) {
 	assertEnvContains(t, env, "TERM_PROGRAM_VERSION=1.90.0")
 }
 
-func TestNormalizeEnvScrubsKittyIdentityFromOverrides(t *testing.T) {
+func TestNormalizeEnvNormalizesKittyIdentityFromOverrides(t *testing.T) {
 	t.Parallel()
 
 	env := normalizeEnv([]string{"KITTY_WINDOW_ID=9", "PATH=/bin"})
-	assertEnvKeyAbsent(t, env, "KITTY_WINDOW_ID")
+	// A caller-supplied host identity is replaced by the deterministic one.
+	assertEnvContains(t, env, "KITTY_WINDOW_ID="+kittyWindowID)
+	assertEnvKeyCount(t, env, "KITTY_WINDOW_ID", 1)
 	assertEnvContains(t, env, "PATH=/bin")
 }
 
@@ -143,5 +152,21 @@ func assertEnvKeyAbsent(t *testing.T, env []string, key string) {
 		if strings.HasPrefix(entry, prefix) {
 			t.Fatalf("env %v unexpectedly contains key %q", env, key)
 		}
+	}
+}
+
+func assertEnvKeyCount(t *testing.T, env []string, key string, want int) {
+	t.Helper()
+
+	prefix := key + "="
+	got := 0
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			got++
+		}
+	}
+
+	if got != want {
+		t.Fatalf("env %v has key %q %d times, want %d", env, key, got, want)
 	}
 }

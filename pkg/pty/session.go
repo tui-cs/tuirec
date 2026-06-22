@@ -70,7 +70,7 @@ func normalizeEnv(env []string) []string {
 		normalized = mergeEnv(normalized, env)
 	}
 
-	normalized = scrubGraphicsIdentityEnv(normalized)
+	normalized = advertiseKittyGraphicsEnv(normalized)
 
 	normalized = appendDefaultEnv(normalized, "TERM", "xterm-256color")
 	normalized = appendDefaultEnv(normalized, "COLORTERM", "truecolor")
@@ -78,20 +78,16 @@ func normalizeEnv(env []string) []string {
 	return normalized
 }
 
-// kittyIdentityVars are environment variables that mark the host terminal as
-// Kitty- or Ghostty-class. Apps detect Kitty graphics-protocol support purely
-// from these (e.g. Terminal.Gui's KittyGraphicsSupportDetector keys off
-// KITTY_WINDOW_ID, never a query/response) — see also the TERM_PROGRAM handling
-// in scrubGraphicsIdentityEnv.
-//
-// tuirec presents a deterministic, sixel-capable xterm identity: TERM is forced
-// to xterm-256color and the DA1/geometry interceptor advertises sixel. The agg
-// replay pipeline renders sixel but not Kitty graphics. If these markers leak in
-// from the recording shell (i.e. recording from inside kitty/ghostty), the app
-// detects Kitty, prefers it over sixel, and emits Kitty graphics that agg cannot
-// render — the GIF comes out blank. Strip them so the app uses the sixel path
-// tuirec actually supports.
-var kittyIdentityVars = map[string]bool{
+// kittyWindowID is the deterministic KITTY_WINDOW_ID tuirec advertises to the
+// recorded app. The value is arbitrary; only its presence matters for detection.
+const kittyWindowID = "1"
+
+// kittyHostVars are host-specific Kitty/Ghostty environment variables that point
+// at the recording terminal's own running instance (control sockets, pids,
+// install directories). They are stripped from the recorded app's environment so
+// host-specific state never leaks into a recording; tuirec then advertises its
+// own deterministic Kitty identity in advertiseKittyGraphicsEnv.
+var kittyHostVars = map[string]bool{
 	"KITTY_WINDOW_ID":        true,
 	"KITTY_PID":              true,
 	"KITTY_INSTALLATION_DIR": true,
@@ -101,36 +97,25 @@ var kittyIdentityVars = map[string]bool{
 	"GHOSTTY_BIN_DIR":        true,
 }
 
-// scrubGraphicsIdentityEnv removes the environment variables that would make a
-// recorded app believe it is running under a Kitty graphics-capable terminal.
-// TERM_PROGRAM is only dropped when it names a Kitty-class terminal (kitty or
-// ghostty), so unrelated values (vscode, iTerm.app, WezTerm, Apple_Terminal,
-// ...) and any app behavior keyed off them are left untouched.
-func scrubGraphicsIdentityEnv(env []string) []string {
-	dropTermProgram := false
-	for _, entry := range env {
-		if key, ok := envKey(entry); ok && key == "TERM_PROGRAM" {
-			value := entry[len(key)+1:]
-			if strings.EqualFold(value, "kitty") || strings.EqualFold(value, "ghostty") {
-				dropTermProgram = true
-				break
-			}
-		}
-	}
-
+// advertiseKittyGraphicsEnv presents a deterministic Kitty graphics-capable
+// identity to the recorded app. Apps detect Kitty graphics-protocol support
+// purely from the environment (e.g. Terminal.Gui's KittyGraphicsSupportDetector
+// keys off KITTY_WINDOW_ID, never a query/response), so tuirec strips the host's
+// own Kitty/Ghostty identity vars and sets a single deterministic
+// KITTY_WINDOW_ID. The app then prefers Kitty graphics, which the agg replay
+// pipeline renders (agg >= v1.11.0-sixel, built on the Kitty-capable avt fork).
+// Stripping the host vars first keeps the advertised identity deterministic
+// regardless of which terminal tuirec is recorded from.
+func advertiseKittyGraphicsEnv(env []string) []string {
 	filtered := env[:0]
 	for _, entry := range env {
-		key, ok := envKey(entry)
-		if ok && kittyIdentityVars[key] {
-			continue
-		}
-		if ok && dropTermProgram && (key == "TERM_PROGRAM" || key == "TERM_PROGRAM_VERSION") {
+		if key, ok := envKey(entry); ok && kittyHostVars[key] {
 			continue
 		}
 		filtered = append(filtered, entry)
 	}
 
-	return filtered
+	return append(filtered, "KITTY_WINDOW_ID="+kittyWindowID)
 }
 
 func mergeEnv(base []string, overrides []string) []string {
