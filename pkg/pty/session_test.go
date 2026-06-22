@@ -73,6 +73,43 @@ func TestNormalizeEnvOverridesParentValues(t *testing.T) {
 	}
 }
 
+func TestNormalizeEnvScrubsKittyIdentityVars(t *testing.T) {
+	t.Setenv("KITTY_WINDOW_ID", "1")
+	t.Setenv("KITTY_PID", "4242")
+	t.Setenv("GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty")
+
+	env := normalizeEnv(nil)
+	assertEnvKeyAbsent(t, env, "KITTY_WINDOW_ID")
+	assertEnvKeyAbsent(t, env, "KITTY_PID")
+	assertEnvKeyAbsent(t, env, "GHOSTTY_RESOURCES_DIR")
+}
+
+func TestNormalizeEnvDropsKittyClassTermProgram(t *testing.T) {
+	t.Setenv("TERM_PROGRAM", "ghostty")
+	t.Setenv("TERM_PROGRAM_VERSION", "1.0.0")
+
+	env := normalizeEnv(nil)
+	assertEnvKeyAbsent(t, env, "TERM_PROGRAM")
+	assertEnvKeyAbsent(t, env, "TERM_PROGRAM_VERSION")
+}
+
+func TestNormalizeEnvPreservesNonKittyTermProgram(t *testing.T) {
+	t.Setenv("TERM_PROGRAM", "vscode")
+	t.Setenv("TERM_PROGRAM_VERSION", "1.90.0")
+
+	env := normalizeEnv(nil)
+	assertEnvContains(t, env, "TERM_PROGRAM=vscode")
+	assertEnvContains(t, env, "TERM_PROGRAM_VERSION=1.90.0")
+}
+
+func TestNormalizeEnvScrubsKittyIdentityFromOverrides(t *testing.T) {
+	t.Parallel()
+
+	env := normalizeEnv([]string{"KITTY_WINDOW_ID=9", "PATH=/bin"})
+	assertEnvKeyAbsent(t, env, "KITTY_WINDOW_ID")
+	assertEnvContains(t, env, "PATH=/bin")
+}
+
 func assertEnvContains(t *testing.T, env []string, want string) {
 	t.Helper()
 
@@ -96,4 +133,15 @@ func assertEnvKeyPresent(t *testing.T, env []string, key string) {
 	}
 
 	t.Fatalf("env %v does not contain key %q", env, key)
+}
+
+func assertEnvKeyAbsent(t *testing.T, env []string, key string) {
+	t.Helper()
+
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			t.Fatalf("env %v unexpectedly contains key %q", env, key)
+		}
+	}
 }
