@@ -549,3 +549,66 @@ func (s *fakeSession) written() string {
 
 	return string(s.input)
 }
+
+// TestHasKittyGraphicsOutput verifies that Kitty graphics APC strings (ESC _ G
+// ... ST, or the C1 APC introducer) are recognized, while other APC strings and
+// non-graphics escapes are not.
+func TestHasKittyGraphicsOutput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"kitty ESC _ G", "\x1b_Gf=24,s=4,v=4;AAAA\x1b\\", true},
+		{"kitty C1 APC", "\x9fGf=24;AAAA\x1b\\", true},
+		{"kitty with text", "Hello\x1b_Ga=T;AAAA\x1b\\", true},
+		{"non-graphics APC", "\x1b_qsomething\x1b\\", false},
+		{"sixel only", "\x1bPq#1~~-\x1b\\", false},
+		{"text only", "Hello", false},
+		{"csi only", "\x1b[2J", false},
+		{"empty apc", "\x1b_\x1b\\", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasKittyGraphicsOutput(tt.input)
+			if got != tt.expect {
+				t.Errorf("hasKittyGraphicsOutput(%q) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+// TestTrimCastPreservesKittyOnlyGraphics verifies that a Kitty graphics APC can
+// start a trimmed cast even when there is no surrounding visible text — the
+// failure mode flagged for image-only Kitty recordings.
+func TestTrimCastPreservesKittyOnlyGraphics(t *testing.T) {
+	t.Parallel()
+
+	castPath := filepath.Join(t.TempDir(), "kitty-only-trim.cast")
+	cast := strings.Join([]string{
+		`{"version":2,"width":80,"height":24}`,
+		`[0,"o","\u001b[?1049h"]`,
+		`[0.2,"o","\u001b_Gf=24,s=4,v=4,a=T;AAAAAAAA\u001b\\"]`,
+		`[0.8,"o","\u001b[?1049l"]`,
+		"",
+	}, "\n")
+	if err := os.WriteFile(castPath, []byte(cast), 0o600); err != nil {
+		t.Fatalf("write cast: %v", err)
+	}
+
+	if err := trimCast(castPath); err != nil {
+		t.Fatalf("trimCast: %v", err)
+	}
+
+	trimmed, err := os.ReadFile(castPath)
+	if err != nil {
+		t.Fatalf("read cast: %v", err)
+	}
+
+	if !strings.Contains(string(trimmed), `\u001b_G`) {
+		t.Fatalf("trimmed cast lost Kitty-only graphics:\n%s", trimmed)
+	}
+}

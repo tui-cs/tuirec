@@ -692,7 +692,41 @@ func hasVisibleOutput(output string) bool {
 }
 
 func hasTrimStartOutput(output string) bool {
-	return hasVisibleOutput(output) || hasSixelOutput(output)
+	return hasVisibleOutput(output) || hasSixelOutput(output) || hasKittyGraphicsOutput(output)
+}
+
+// hasKittyGraphicsOutput reports whether output contains a Kitty graphics
+// protocol command — an APC string (ESC _ ... ST, or the single-byte C1 APC
+// introducer \x9f) whose first payload byte is 'G'. Apps that prefer Kitty
+// graphics over sixel emit image data this way; like sixel it is invisible to
+// hasVisibleOutput (which skips string escapes), so the trimmer must recognize
+// it explicitly or a Kitty-image-only first frame is dropped as setup.
+func hasKittyGraphicsOutput(output string) bool {
+	for i := 0; i < len(output); {
+		if output[i] == '\x1b' {
+			if i+1 < len(output) && output[i+1] == '_' {
+				if i+2 < len(output) && output[i+2] == 'G' {
+					return true
+				}
+				i = skipStringEscape(output, i+2)
+				continue
+			}
+			i = skipEscape(output, i)
+			continue
+		}
+		if output[i] == '\x9f' {
+			if i+1 < len(output) && output[i+1] == 'G' {
+				return true
+			}
+			i = skipStringEscape(output, i+1)
+			continue
+		}
+
+		_, size := utf8.DecodeRuneInString(output[i:])
+		i += size
+	}
+
+	return false
 }
 
 func hasSixelOutput(output string) bool {
