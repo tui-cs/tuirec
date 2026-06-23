@@ -20,7 +20,7 @@ Rewrite tuirec as a **cross-platform Go CLI** that records any terminal app and 
 | PTY driver deps | `pkg/pty` may import `github.com/creack/pty` (Unix) + `github.com/UserExistsError/conpty` (Windows) | Resolves the constitution R1 conflict; amended to R1 v1.1. Hand-rolling `forkpty`/ConPTY is out of scope |
 | Windows ConPTY library | `github.com/UserExistsError/conpty` | Resolves CLAUDE.md open decision #1. The previously-referenced `iamacarpet/go-conpty` **does not exist** as a module. `UserExistsError/conpty` builds and passes on Windows — proven by the Phase 1 spike (PR #3) |
 | Windows in v1 | **In scope — folded back into Phase 1** (not a deferred spike) | PR #3 is the spike evidence: ConPTY works. Cross-platform PTY is a Phase 1 deliverable again. The only Windows item still deferred is agg-on-Windows in CI for full-GIF integration |
-| Module path | `github.com/gui-cs/tuirec` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
+| Module path | `github.com/tui-cs/tuirec` (exact case) | Go import paths are case-sensitive; must match `go.mod`, README, and `.goreleaser.yaml` |
 | agg distribution | Bundle pinned `agg v1.11.0-sixel` in release archives and support source-build prerequisites | Release archives include a sibling `agg` binary that tuirec auto-detects before PATH. `go install`/local builds still require `agg` on PATH or `--agg-path`. Upstream does not publish a native Windows ARM64 asset for `v1.11.0-sixel`; Windows ARM64 archives include the x64 Windows binary for OS emulation, or users can build `agg` from source and pass `--agg-path` |
 | Recording clock | Support a deterministic (scripted) clock in addition to wall-clock | Wall-clock timing makes GIFs non-reproducible and CI flaky; scripted timing enables golden-GIF regression |
 
@@ -173,7 +173,7 @@ tuirec record \
 | `os/exec` | Invoke agg | |
 | (stdlib) | JSON, time, IO | asciinema recorder is ~50 lines |
 
-**Canonical module path:** `github.com/gui-cs/tuirec` (exact case — Go
+**Canonical module path:** `github.com/tui-cs/tuirec` (exact case — Go
 import paths are case-sensitive). `go.mod` must declare exactly this.
 
 ### Module structure:
@@ -359,7 +359,7 @@ row and no Unix-only fallback.
 
 | Method | Command | Platform |
 |--------|---------|----------|
-| Go install | `go install github.com/gui-cs/tuirec/cmd/tuirec@latest` | Any (requires Go) |
+| Go install | `go install github.com/tui-cs/tuirec/cmd/tuirec@latest` | Any (requires Go) |
 | Binary download | GitHub Releases page; archives include `tuirec` + pinned `agg` | Any |
 | Homebrew | Planned after tap repo + token setup | macOS, Linux |
 | Scoop | Planned after bucket repo + token setup | Windows |

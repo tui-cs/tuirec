@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/gif"
 )
 
 func TestParseFrameSelection(t *testing.T) {

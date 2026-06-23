@@ -8,10 +8,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gui-cs/tuirec/examples/internal/demoagg"
-	"github.com/gui-cs/tuirec/pkg/gif"
-	"github.com/gui-cs/tuirec/pkg/pty"
-	"github.com/gui-cs/tuirec/pkg/record"
+	"github.com/tui-cs/tuirec/examples/internal/demoagg"
+	"github.com/tui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/pty"
+	"github.com/tui-cs/tuirec/pkg/record"
 )
 
 func main() {

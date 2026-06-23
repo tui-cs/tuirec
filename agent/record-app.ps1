@@ -14,7 +14,7 @@
 
     Output goes to artifacts/ by default. If tuirec or agg are not on PATH,
     they are automatically downloaded from
-    https://github.com/gui-cs/tuirec/releases and installed into ~/tools.
+    https://github.com/tui-cs/tuirec/releases and installed into ~/tools.
 
     See agent/RECORDING-AGENT.md for the keystroke syntax reference and
     guidance on composing keystroke scripts.
@@ -139,7 +139,7 @@ function Install-tuirecTools {
     $null = New-Item -ItemType Directory -Force -Path $ToolsDir
 
     $asset = Get-tuirecAssetName
-    $url = "https://github.com/gui-cs/tuirec/releases/download/v${tuirecVersion}/${asset}"
+    $url = "https://github.com/tui-cs/tuirec/releases/download/v${tuirecVersion}/${asset}"
     $tempFile = Join-Path ([System.IO.Path]::GetTempPath()) $asset
 
     Write-Host "Downloading tuirec v${tuirecVersion}: $url"

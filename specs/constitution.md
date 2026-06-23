@@ -2,7 +2,7 @@
 
 **Version**: 1.2 | **Ratified**: 2026-05-19 | **Last Amended**: 2026-05-19
 
-This constitution governs all contributions to `gui-cs/tuirec`. It is the highest-authority document in the repository — PRs that violate it are rejected with a link to the specific rule.
+This constitution governs all contributions to `tui-cs/tuirec`. It is the highest-authority document in the repository — PRs that violate it are rejected with a link to the specific rule.
 
 ---
 

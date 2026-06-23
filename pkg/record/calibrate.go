@@ -4,7 +4,7 @@ import (
 	"context"
 	"math"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/gif"
 )
 
 // alignTolerancePx is the largest per-column rounding error tolerated before the
@@ -13,7 +13,7 @@ import (
 // 16t) are integers, so an app that sizes a sixel raster as cells × reportedCell
 // underfills by (advance − round(advance)) per column. At ~0.15px that residual
 // is well under a third of a cell across a full-width image; beyond it the gap
-// becomes visible (see gui-cs/tuirec#84).
+// becomes visible (see tui-cs/tuirec#84).
 const alignTolerancePx = 0.15
 
 // cellRoundingErr is how far agg's per-column advance at fontSize is from the
@@ -78,7 +78,7 @@ func alignLineHeight(fontSize int, requestedLineHeight float64) (cellH int, aggL
 // integer cell size to report to sixel queries. This replaces a static
 // advance-ratio guess (which is wrong for whatever font agg resolves on the
 // host) with a measurement, and aligns the grid so apps that size rasters as
-// cells × reportedCell fill exactly (gui-cs/tuirec#84). The returned Config has
+// cells × reportedCell fill exactly (tui-cs/tuirec#84). The returned Config has
 // FontSize/LineHeight adjusted for rendering; changed reports whether the
 // font-size moved from the request.
 func calibrateGeometry(ctx context.Context, gifCfg gif.Config) (adjusted gif.Config, cellW, cellH int, changed bool, err error) {

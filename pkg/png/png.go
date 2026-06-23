@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/gif"
 )
 
 // ErrValidation indicates that a rendered PNG failed validation.

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/gif"
 )
 
 func TestAlignFontSize(t *testing.T) {

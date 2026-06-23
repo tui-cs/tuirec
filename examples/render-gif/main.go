@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/gui-cs/tuirec/examples/internal/demoagg"
-	"github.com/gui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/examples/internal/demoagg"
+	"github.com/tui-cs/tuirec/pkg/gif"
 )
 
 func main() {

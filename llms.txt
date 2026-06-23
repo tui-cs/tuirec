@@ -8,8 +8,8 @@ agg. No manual screen recording, no browser-based tools.
 
 ## Install
 
-Download a release archive from https://github.com/gui-cs/tuirec/releases
-(includes tuirec + a sixel-capable agg). Or: `go install github.com/gui-cs/tuirec/cmd/tuirec@latest`
+Download a release archive from https://github.com/tui-cs/tuirec/releases
+(includes tuirec + a sixel-capable agg). Or: `go install github.com/tui-cs/tuirec/cmd/tuirec@latest`
 and install agg separately (the sixel-capable fork: https://github.com/tig/agg).
 
 ## Quick start
@@ -52,7 +52,7 @@ The guide covers:
 
 ## Links
 
-- Repository: https://github.com/gui-cs/tuirec
-- Releases: https://github.com/gui-cs/tuirec/releases
+- Repository: https://github.com/tui-cs/tuirec
+- Releases: https://github.com/tui-cs/tuirec/releases
 - Agent guide (in-repo): agent/RECORDING-AGENT.md
 - Spec: spec.md
