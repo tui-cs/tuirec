@@ -1,4 +1,4 @@
-module github.com/gui-cs/tuirec
+module github.com/tui-cs/tuirec
 
 go 1.22
 

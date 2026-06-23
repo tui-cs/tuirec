@@ -121,7 +121,7 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   a sixel-aware `agg`. Caveats: **not on Windows** (ConPTY strips sixel DCS —
   record on Linux/macOS); pass **`--trim=false`** for alternate-screen apps; and
   the advertised sixel cell resolution may **not** equal `agg`'s rendered font
-  cell ([#84](https://github.com/gui-cs/tuirec/issues/84)), so a raster sized
+  cell ([#84](https://github.com/tui-cs/tuirec/issues/84)), so a raster sized
   `cells × reportedResolution` can render a few percent undersized — verify size
   by measurement (see below), do not assume it fills. To record a Terminal.Gui
   sixel scenario (e.g. UICatalog's `Mandelbrot`), launch the scenario directly
@@ -139,7 +139,7 @@ A keystroke script is a **comma-separated** string. Each token is one of:
   pixel-faithful render of a raster built from the wrong cell size is still wrong,
   and a ~4% error is invisible by sight. Because the advertised cell resolution
   may not match `agg`'s rendered font cell
-  ([#84](https://github.com/gui-cs/tuirec/issues/84)), a sixel sized
+  ([#84](https://github.com/tui-cs/tuirec/issues/84)), a sixel sized
   `cells × reportedResolution` can come out undersized. The invariant to check is
   *does the rendered sixel cover the cells it was meant to cover, in position and
   size?* — verify it with arithmetic: extract a frame, measure `agg`'s real cell

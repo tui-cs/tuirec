@@ -10,7 +10,7 @@ Give it a binary and a keystroke script → get a polished GIF or PNG. No manual
 
 ```sh
 # Go (requires Go 1.22+)
-go install github.com/gui-cs/tuirec/cmd/tuirec@latest
+go install github.com/tui-cs/tuirec/cmd/tuirec@latest
 ```
 
 `go install` places the binary in `$(go env GOPATH)/bin/`. Ensure that
@@ -28,7 +28,7 @@ $gobin = "$(go env GOPATH)\bin"
 
 Verify: `tuirec --version`
 
-Or download a binary from [GitHub Releases](https://github.com/gui-cs/tuirec/releases). Release archives include a pinned, sixel- and Kitty-graphics-capable `agg` binary (`tig/agg v1.11.0-sixel`) next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
+Or download a binary from [GitHub Releases](https://github.com/tui-cs/tuirec/releases). Release archives include a pinned, sixel- and Kitty-graphics-capable `agg` binary (`tig/agg v1.11.0-sixel`) next to `tuirec`, and the CLI auto-detects that sibling binary before falling back to `PATH`.
 Homebrew and Scoop manifests are planned after the first release automation pass.
 
 **Prerequisite for source builds:** [agg](https://github.com/tig/agg) `v1.11.0-sixel` — a fork of asciinema/agg that renders sixel and Kitty graphics — renders casts to GIFs. tuirec **auto-downloads `agg`** on first use if it's not found on PATH or in the local cache (`~/.cache/tuirec/agg-v1.11.0-sixel/` on Unix, `%LOCALAPPDATA%\tuirec\agg-v1.11.0-sixel\` on Windows). You can also pass `--agg-path` explicitly.
@@ -198,6 +198,6 @@ tuirec opencli       # machine-readable command schema (OpenCLI draft spec)
 ```
 
 If tuirec is not installed, download it from
-[GitHub Releases](https://github.com/gui-cs/tuirec/releases) — archives
+[GitHub Releases](https://github.com/tui-cs/tuirec/releases) — archives
 include both `tuirec` and `agg`. See [`llms.txt`](llms.txt) for a
 machine-readable project summary.

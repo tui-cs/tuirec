@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
-	"github.com/gui-cs/tuirec/pkg/keystroke"
-	pngrenderer "github.com/gui-cs/tuirec/pkg/png"
-	"github.com/gui-cs/tuirec/pkg/pointer"
-	"github.com/gui-cs/tuirec/pkg/pty"
-	"github.com/gui-cs/tuirec/pkg/record"
+	"github.com/tui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/keystroke"
+	pngrenderer "github.com/tui-cs/tuirec/pkg/png"
+	"github.com/tui-cs/tuirec/pkg/pointer"
+	"github.com/tui-cs/tuirec/pkg/pty"
+	"github.com/tui-cs/tuirec/pkg/record"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

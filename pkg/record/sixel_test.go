@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
-	"github.com/gui-cs/tuirec/pkg/pty"
-	"github.com/gui-cs/tuirec/pkg/recorder"
+	"github.com/tui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/pty"
+	"github.com/tui-cs/tuirec/pkg/recorder"
 )
 
 // A minimal sixel DCS payload: ESC P q <data> ESC \

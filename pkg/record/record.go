@@ -14,11 +14,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
-	"github.com/gui-cs/tuirec/pkg/keystroke"
-	"github.com/gui-cs/tuirec/pkg/pointer"
-	"github.com/gui-cs/tuirec/pkg/pty"
-	"github.com/gui-cs/tuirec/pkg/recorder"
+	"github.com/tui-cs/tuirec/pkg/gif"
+	"github.com/tui-cs/tuirec/pkg/keystroke"
+	"github.com/tui-cs/tuirec/pkg/pointer"
+	"github.com/tui-cs/tuirec/pkg/pty"
+	"github.com/tui-cs/tuirec/pkg/recorder"
 )
 
 const (
@@ -89,7 +89,7 @@ type Result struct {
 // This is a fallback estimate. When a GIF is rendered, Run replaces it with a
 // measured, grid-aligned cell via calibrateGeometry, because the 0.6 column
 // ratio is wrong for whatever font agg actually resolves on the host and a
-// fractional advance cannot be reported as an integer cell (gui-cs/tuirec#84).
+// fractional advance cannot be reported as an integer cell (tui-cs/tuirec#84).
 func sixelGeometry(size pty.Size, gifConfig gif.Config) (cols, rows, cellW, cellH int) {
 	size = pty.NormalizeSize(size)
 	gifConfig = gif.NormalizeConfig(gifConfig)
@@ -151,7 +151,7 @@ func Run(parent context.Context, config Config) (Result, error) {
 
 	// Compute the sixel cell geometry to report and, when a GIF will be rendered,
 	// calibrate it against the cell agg actually renders so the integer cell
-	// report matches it exactly (gui-cs/tuirec#84). This runs BEFORE the
+	// report matches it exactly (tui-cs/tuirec#84). This runs BEFORE the
 	// MaxDuration context is created so the agg probe-render time is not charged
 	// against the recording budget — otherwise a short MaxDuration would
 	// spuriously trip "recording hit max duration". Falls back to the formula

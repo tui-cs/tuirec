@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/tuirec/pkg/gif"
-	pngrenderer "github.com/gui-cs/tuirec/pkg/png"
-	"github.com/gui-cs/tuirec/pkg/record"
+	"github.com/tui-cs/tuirec/pkg/gif"
+	pngrenderer "github.com/tui-cs/tuirec/pkg/png"
+	"github.com/tui-cs/tuirec/pkg/record"
 )
 
 func TestRecordCommandParsesFlags(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gui-cs/tuirec/pkg/pty"
+	"github.com/tui-cs/tuirec/pkg/pty"
 )
 
 func TestSessionRunsTestappAndQuitsWithCtrlQ(t *testing.T) {
