@@ -14,7 +14,7 @@ const (
 	// DefaultAggVersion is the agg release version downloaded when auto-fetching.
 	// The fork (see aggReleaseRepo) ships sixel and Kitty graphics rendering;
 	// pinned here until that support lands in an upstream asciinema/agg release.
-	DefaultAggVersion = "v1.11.0-sixel"
+	DefaultAggVersion = "v1.11.1-sixel"
 
 	// aggReleaseRepo is the GitHub owner/name the agg binary is fetched from.
 	aggReleaseRepo = "tig/agg"
